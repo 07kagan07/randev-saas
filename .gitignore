@@ -1,0 +1,26 @@
+# Ortam değişkenleri — asla commit etme
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Build çıktıları
+backend/dist/
+frontend/dist/
+
+# Yüklenen dosyalar
+backend/uploads/
+
+# SSL sertifikaları
+nginx/certs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

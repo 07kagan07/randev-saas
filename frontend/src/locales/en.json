@@ -1,0 +1,73 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "confirm": "Confirm",
+    "close": "Close",
+    "search": "Search...",
+    "noData": "No records found"
+  },
+  "auth": {
+    "phone": "Phone Number",
+    "otp": "Verification Code",
+    "sendOtp": "Send Code",
+    "verifyOtp": "Sign In",
+    "otpSent": "Verification code sent to your phone.",
+    "logout": "Sign Out"
+  },
+  "booking": {
+    "title": "Book Appointment",
+    "step1": "Service & Staff",
+    "step2": "Date & Time",
+    "step3": "Your Details",
+    "selectService": "Select Service",
+    "selectStaff": "Select Staff",
+    "anyStaff": "No Preference",
+    "selectDate": "Select Date",
+    "selectTime": "Select Time",
+    "yourName": "Full Name",
+    "yourPhone": "Phone Number",
+    "bookButton": "Book Appointment",
+    "successTitle": "Appointment Booked! ✅",
+    "slotFull": "This time slot is taken, please select another.",
+    "minutes": "min"
+  },
+  "appointments": {
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "rescheduled": "Rescheduled",
+      "completed": "Completed",
+      "no_show": "No Show"
+    },
+    "approve": "Approve",
+    "reject": "Reject",
+    "complete": "Complete",
+    "noShow": "No Show",
+    "rejectionReason": "Rejection Reason"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "appointments": "Appointments",
+    "calendar": "Calendar",
+    "staff": "Staff",
+    "services": "Services",
+    "reports": "Reports",
+    "settings": "Settings"
+  },
+  "plan": {
+    "free": "Free",
+    "pro": "Pro",
+    "business": "Business",
+    "limitWarning": "You've used {{used}}/{{limit}} appointments this month.",
+    "upgrade": "Upgrade Plan"
+  }
+}

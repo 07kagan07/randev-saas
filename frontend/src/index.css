@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply text-base text-gray-900 bg-white;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Minimum dokunma hedefi — "stupid user" prensibi */
+  button, a, [role="button"] {
+    @apply min-h-[48px];
+  }
+
+  input, select, textarea {
+    @apply text-base; /* iOS zoom engelle */
+  }
+}
+
+@layer utilities {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

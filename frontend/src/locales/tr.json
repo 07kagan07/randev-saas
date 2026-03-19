@@ -1,0 +1,73 @@
+{
+  "common": {
+    "loading": "Yükleniyor...",
+    "error": "Bir hata oluştu",
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "back": "Geri",
+    "next": "İleri",
+    "confirm": "Onayla",
+    "close": "Kapat",
+    "search": "Ara...",
+    "noData": "Kayıt bulunamadı"
+  },
+  "auth": {
+    "phone": "Telefon Numarası",
+    "otp": "Doğrulama Kodu",
+    "sendOtp": "Kod Gönder",
+    "verifyOtp": "Giriş Yap",
+    "otpSent": "Doğrulama kodu telefonunuza gönderildi.",
+    "logout": "Çıkış Yap"
+  },
+  "booking": {
+    "title": "Randevu Al",
+    "step1": "Hizmet & Personel",
+    "step2": "Tarih & Saat",
+    "step3": "Bilgileriniz",
+    "selectService": "Hizmet Seçin",
+    "selectStaff": "Personel Seçin",
+    "anyStaff": "Fark Etmez",
+    "selectDate": "Tarih Seçin",
+    "selectTime": "Saat Seçin",
+    "yourName": "Ad Soyad",
+    "yourPhone": "Telefon Numarası",
+    "bookButton": "Randevumu Al",
+    "successTitle": "Randevunuz Alındı! ✅",
+    "slotFull": "Bu saat doldu, lütfen başka bir saat seçin.",
+    "minutes": "dk"
+  },
+  "appointments": {
+    "status": {
+      "pending": "Bekliyor",
+      "approved": "Onaylandı",
+      "rejected": "Reddedildi",
+      "cancelled": "İptal",
+      "rescheduled": "Ertelendi",
+      "completed": "Tamamlandı",
+      "no_show": "Gelmedi"
+    },
+    "approve": "Onayla",
+    "reject": "Reddet",
+    "complete": "Tamamlandı",
+    "noShow": "Gelmedi",
+    "rejectionReason": "Red Sebebi"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "appointments": "Randevular",
+    "calendar": "Takvim",
+    "staff": "Personel",
+    "services": "Hizmetler",
+    "reports": "Raporlar",
+    "settings": "Ayarlar"
+  },
+  "plan": {
+    "free": "Ücretsiz",
+    "pro": "Pro",
+    "business": "İşletme",
+    "limitWarning": "Bu ay {{used}}/{{limit}} randevunuzu kullandınız.",
+    "upgrade": "Planı Yükselt"
+  }
+}
