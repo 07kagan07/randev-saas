@@ -20,9 +20,12 @@ export class InitialSchema1710000000000 implements MigrationInterface {
         "subscription_plan"    VARCHAR(20)   NOT NULL DEFAULT 'free',
         "subscription_ends_at" TIMESTAMPTZ,
         "timezone"             VARCHAR(60)   NOT NULL DEFAULT 'Europe/Istanbul',
-        "approval_mode"        VARCHAR(20)   NOT NULL DEFAULT 'auto_approve',
-        "created_at"           TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-        "updated_at"           TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+        "approval_mode"             VARCHAR(20)   NOT NULL DEFAULT 'auto_approve',
+        "onboarding_completed"      BOOLEAN       NOT NULL DEFAULT false,
+        "onboarding_step"           INTEGER       NOT NULL DEFAULT 0,
+        "onboarding_skipped_steps"  TEXT          NOT NULL DEFAULT '[]',
+        "created_at"                TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+        "updated_at"                TIMESTAMPTZ   NOT NULL DEFAULT NOW()
       )
     `);
 

@@ -72,6 +72,13 @@ export class AppointmentsController {
     return this.appointmentsService.markNoShow(user, id);
   }
 
+  @Patch(':id/cancel')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STAFF, UserRole.BUSINESS_ADMIN)
+  cancel(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.appointmentsService.cancelByStaff(user, id);
+  }
+
   // Public — token ile iptal/ertele
   @Post('action')
   @HttpCode(HttpStatus.OK)

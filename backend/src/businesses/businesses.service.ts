@@ -8,6 +8,7 @@ import { NotificationSettings } from '../database/entities/notification-settings
 import { SupportTicket } from '../database/entities/support-ticket.entity';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessDto } from './dto/update-business.dto';
+import { slugify } from '../common/utils/slugify';
 import { ListBusinessesDto } from './dto/list-businesses.dto';
 import * as QRCode from 'qrcode';
 import { ConfigService } from '@nestjs/config';
@@ -159,7 +160,7 @@ export class BusinessesService {
   }
 
   private async generateUniqueSlug(name: string, customSlug?: string): Promise<string> {
-    let base = customSlug || this.slugify(name);
+    let base = customSlug || slugify(name);
     let slug = base;
     let counter = 1;
 
@@ -170,17 +171,4 @@ export class BusinessesService {
     return slug;
   }
 
-  private slugify(text: string): string {
-    return text
-      .toLowerCase()
-      .replace(/ğ/g, 'g')
-      .replace(/ü/g, 'u')
-      .replace(/ş/g, 's')
-      .replace(/ı/g, 'i')
-      .replace(/ö/g, 'o')
-      .replace(/ç/g, 'c')
-      .replace(/[^a-z0-9]/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-  }
 }

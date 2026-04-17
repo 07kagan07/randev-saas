@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate, Outlet } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { LayoutDashboard, Calendar, Clock, LogOut, Menu } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 
@@ -12,7 +12,12 @@ const nav = [
 export default function StaffLayout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const pageTitle = nav.find(item =>
+    item.end ? location.pathname === item.to : location.pathname.startsWith(item.to)
+  )?.label ?? 'Panel';
 
   const handleLogout = async () => {
     await logout();
@@ -20,7 +25,7 @@ export default function StaffLayout() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-[100dvh] bg-gray-100 overflow-hidden">
       {sidebarOpen && (
         <div className="fixed inset-0 z-20 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
@@ -67,11 +72,11 @@ export default function StaffLayout() {
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 lg:hidden">
-          <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600">
+        <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+          <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 lg:hidden">
             <Menu className="w-5 h-5" />
           </button>
-          <span className="font-semibold text-gray-800">Personel Panel</span>
+          <span className="font-semibold text-gray-800">{pageTitle}</span>
         </header>
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />

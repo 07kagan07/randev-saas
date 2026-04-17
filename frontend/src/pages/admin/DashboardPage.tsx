@@ -62,7 +62,7 @@ export default function AdminDashboard() {
           <span className="shrink-0 text-indigo-200 text-sm font-medium">Devam Et →</span>
         </button>
       )}
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h1>
+      
 
       {/* Plan kullanım */}
       {u && (

@@ -1,23 +1,23 @@
 import {
   Injectable, NotFoundException, ConflictException,
-  BadRequestException, ForbiddenException, Inject,
+  BadRequestException, ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
-import { Repository, DataSource, Not, In, ILike } from 'typeorm';
+import { Repository, DataSource, Not, In } from 'typeorm';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { DateTime } from 'luxon';
 import { v4 as uuidv4 } from 'uuid';
-import Redis from 'ioredis';
 import { Appointment, AppointmentStatus } from '../database/entities/appointment.entity';
 import { AppointmentLog } from '../database/entities/appointment-log.entity';
 import { Business, ApprovalMode } from '../database/entities/business.entity';
 import { Service } from '../database/entities/service.entity';
 import { User, UserRole } from '../database/entities/user.entity';
 import { NotificationSettings } from '../database/entities/notification-settings.entity';
+import { StaffService as StaffServiceEntity } from '../database/entities/staff-service.entity';
 import { PlanLimitService } from '../businesses/plan-limit.service';
-import { REDIS_CLIENT } from '../config/redis.module';
 import { ConfigService } from '@nestjs/config';
+import { EventsGateway } from '../events/events.gateway';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { ListAppointmentsDto } from './dto/list-appointments.dto';
 import { AppointmentActionDto } from './dto/appointment-action.dto';
@@ -37,16 +37,17 @@ export class AppointmentsService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(NotificationSettings)
     private readonly notifSettingsRepo: Repository<NotificationSettings>,
+    @InjectRepository(StaffServiceEntity)
+    private readonly staffServiceRepo: Repository<StaffServiceEntity>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
-    @Inject(REDIS_CLIENT)
-    private readonly redis: Redis,
     @InjectQueue('notification-queue')
     private readonly notificationQueue: Queue,
     @InjectQueue('reminder-queue')
     private readonly reminderQueue: Queue,
     private readonly planLimitService: PlanLimitService,
     private readonly config: ConfigService,
+    private readonly eventsGateway: EventsGateway,
   ) {}
 
   // ─── Randevu Oluştur (Guest) ───────────────────────────────────────────────
@@ -56,33 +57,43 @@ export class AppointmentsService {
     await this.planLimitService.checkMonthlyAppointmentLimit(dto.business_id);
 
     // 2. İşletme ve hizmet bilgilerini al
-    const [business, service, staff] = await Promise.all([
+    const [business, service] = await Promise.all([
       this.businessRepo.findOne({ where: { id: dto.business_id, is_active: true } }),
       this.serviceRepo.findOne({
         where: { id: dto.service_id, business_id: dto.business_id, is_active: true },
-      }),
-      this.userRepo.findOne({
-        where: { id: dto.staff_id, business_id: dto.business_id, is_active: true },
       }),
     ]);
 
     if (!business) throw new NotFoundException({ code: 'BUSINESS_NOT_FOUND', message: 'İşletme bulunamadı.' });
     if (!service) throw new NotFoundException({ code: 'SERVICE_NOT_FOUND', message: 'Hizmet bulunamadı.' });
-    if (!staff) throw new NotFoundException({ code: 'STAFF_NOT_FOUND', message: 'Personel bulunamadı.' });
 
     const startAt = new Date(dto.start_at);
     const endAt = new Date(startAt.getTime() + service.duration_minutes * 60 * 1000);
 
-    // 3. Transaction + Advisory Lock ile atomic kayıt
+    // 3. Personeli belirle — verilmediyse o slotta en uygun personeli otomatik ata
+    let resolvedStaffId: string;
+    if (dto.staff_id) {
+      const found = await this.userRepo.findOne({
+        where: { id: dto.staff_id, business_id: dto.business_id, is_active: true },
+      });
+      if (!found) throw new NotFoundException({ code: 'STAFF_NOT_FOUND', message: 'Personel bulunamadı.' });
+      resolvedStaffId = dto.staff_id;
+    } else {
+      resolvedStaffId = await this.autoAssignStaff(dto.business_id, dto.service_id, startAt, endAt);
+    }
+
+    const staff = await this.userRepo.findOne({ where: { id: resolvedStaffId } });
+    if (!staff) throw new NotFoundException({ code: 'STAFF_NOT_FOUND', message: 'Personel bulunamadı.' });
+
+    // 4. Transaction + Advisory Lock ile atomic kayıt
     return this.dataSource.transaction(async (manager) => {
-      // Advisory lock — staff_id + start_at hash'i
-      const lockKey = this.hashLock(dto.staff_id + dto.start_at);
+      const lockKey = this.hashLock(resolvedStaffId + dto.start_at);
       await manager.query(`SELECT pg_advisory_xact_lock($1)`, [lockKey]);
 
-      // 4. Slot tekrar kontrol et (lock sonrası)
+      // Slot tekrar kontrol et (lock sonrası)
       const conflict = await manager.findOne(Appointment, {
         where: {
-          staff_id: dto.staff_id,
+          staff_id: resolvedStaffId,
           start_at: startAt,
           status: Not(In([AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED])),
         },
@@ -96,18 +107,16 @@ export class AppointmentsService {
         });
       }
 
-      // 5. Action token üret
       const actionToken = uuidv4();
       const tokenExpiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
-      // 6. Randevu oluştur
       const initialStatus = business.approval_mode === ApprovalMode.AUTO
         ? AppointmentStatus.APPROVED
         : AppointmentStatus.PENDING;
 
       const appointment = manager.create(Appointment, {
         business_id: dto.business_id,
-        staff_id: dto.staff_id,
+        staff_id: resolvedStaffId,
         service_id: dto.service_id,
         customer_name: dto.customer_name,
         customer_phone: dto.customer_phone,
@@ -115,26 +124,110 @@ export class AppointmentsService {
         end_at: endAt,
         status: initialStatus,
         notes: dto.notes,
+        extra_fields: dto.extra_fields ?? {},
         action_token: actionToken,
         action_token_expires_at: tokenExpiresAt,
       });
 
       const saved = await manager.save(Appointment, appointment);
 
-      // 7. Log kaydı
       await manager.save(AppointmentLog, {
         appointment_id: saved.id,
-        changed_by: null, // guest
+        changed_by: null,
         from_status: null,
         to_status: initialStatus,
         note: 'Randevu oluşturuldu',
       });
 
-      // 8. Bildirim kuyruğuna ekle (transaction dışına çıkınca)
       setImmediate(() => this.scheduleNotifications(saved, business, service, staff));
+      setImmediate(() => this.eventsGateway.broadcastNewAppointment(business.id, {
+        ...saved,
+        service: { id: service.id, name: service.name, duration_minutes: service.duration_minutes, price: service.price },
+        staff: staff ? { id: staff.id, full_name: staff.full_name } : null,
+      }));
 
       return saved;
     });
+  }
+
+  // Verilen slot için bu hizmeti yapabilen, o slotta müsait, en az randevusu olan personeli seç
+  private async autoAssignStaff(
+    businessId: string,
+    serviceId: string,
+    startAt: Date,
+    endAt: Date,
+  ): Promise<string> {
+    // Bu hizmeti yapabilen aktif personel
+    const staffServices = await this.staffServiceRepo.find({
+      where: { service_id: serviceId },
+      relations: ['staff'],
+    });
+
+    let candidates = staffServices
+      .map((ss) => ss.staff)
+      .filter((s) => s && s.business_id === businessId && s.is_active);
+
+    if (candidates.length === 0) {
+      candidates = await this.userRepo.find({
+        where: { business_id: businessId, is_active: true },
+      });
+    }
+
+    if (candidates.length === 0) {
+      throw new NotFoundException({ code: 'NO_STAFF_AVAILABLE', message: 'Bu hizmet için uygun personel bulunamadı.' });
+    }
+
+    // Slotta çakışan randevusu olmayan personeli filtrele
+    const available: User[] = [];
+    for (const staff of candidates) {
+      // Çakışma kontrolü — start_at < endAt && end_at > startAt
+      const conflictingAppt = await this.appointmentRepo
+        .createQueryBuilder('a')
+        .where('a.staff_id = :staffId', { staffId: staff.id })
+        .andWhere('a.status NOT IN (:...cancelled)', {
+          cancelled: [AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED],
+        })
+        .andWhere('a.start_at < :endAt', { endAt })
+        .andWhere('a.end_at > :startAt', { startAt })
+        .getOne();
+
+      if (!conflictingAppt) available.push(staff);
+    }
+
+    if (available.length === 0) {
+      throw new ConflictException({
+        code: 'SLOT_NOT_AVAILABLE',
+        message: 'Bu saat diliminde müsait personel yok.',
+        message_en: 'No staff available for this time slot.',
+      });
+    }
+
+    // Müsait personel arasından o gün en az randevusu olanı seç
+    const dayStart = new Date(startAt);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    let bestStaff = available[0];
+    let bestCount = Infinity;
+
+    for (const staff of available) {
+      const count = await this.appointmentRepo
+        .createQueryBuilder('a')
+        .where('a.staff_id = :staffId', { staffId: staff.id })
+        .andWhere('a.start_at >= :dayStart', { dayStart })
+        .andWhere('a.start_at < :dayEnd', { dayEnd })
+        .andWhere('a.status NOT IN (:...cancelled)', {
+          cancelled: [AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED],
+        })
+        .getCount();
+
+      if (count < bestCount) {
+        bestCount = count;
+        bestStaff = staff;
+      }
+    }
+
+    return bestStaff.id;
   }
 
   // ─── Randevu Listele ───────────────────────────────────────────────────────
@@ -245,6 +338,16 @@ export class AppointmentsService {
     }
 
     return this.updateStatus(appointment, AppointmentStatus.NO_SHOW, user.id, 'Müşteri gelmedi');
+  }
+
+  async cancelByStaff(user: User, id: string): Promise<Appointment> {
+    const appointment = await this.findOne(user, id);
+
+    if (![AppointmentStatus.APPROVED, AppointmentStatus.PENDING].includes(appointment.status)) {
+      throw new BadRequestException({ code: 'INVALID_STATUS', message: 'Bu randevu iptal edilemez.' });
+    }
+
+    return this.updateStatus(appointment, AppointmentStatus.CANCELLED, user.id, 'Personel tarafından iptal edildi');
   }
 
   // ─── Token ile İptal / Ertele (Guest) ─────────────────────────────────────

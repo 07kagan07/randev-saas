@@ -83,17 +83,18 @@ export default function AdminStaffPage() {
     enabled: !!bid,
   });
 
-  useQuery({
+  const { data: hoursData } = useQuery({
     queryKey: ['admin-working-hours', hoursStaff?.id],
     queryFn: () => api.get(`/staff/${hoursStaff!.id}/working-hours`).then(r => r.data),
     enabled: !!hoursStaff,
-    onSuccess: (d: any) => {
-      if (d.data?.length) {
-        const sorted = [...d.data].sort((a: WorkingHour, b: WorkingHour) => a.day_of_week - b.day_of_week);
-        setHours(sorted);
-      }
-    },
-  } as any);
+  });
+
+  React.useEffect(() => {
+    const list = hoursData?.data;
+    if (Array.isArray(list) && list.length === 7) {
+      setHours([...list].sort((a: WorkingHour, b: WorkingHour) => a.day_of_week - b.day_of_week));
+    }
+  }, [hoursData]);
 
   const { data: blocksData } = useQuery({
     queryKey: ['admin-blocked-periods', hoursStaff?.id],
@@ -161,8 +162,8 @@ export default function AdminStaffPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Personel</h1>
+      <div className="flex items-center justify-end mb-6">
+
         <button onClick={() => setAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg">
           + Personel Ekle
         </button>
@@ -290,7 +291,14 @@ export default function AdminStaffPage() {
                         <input
                           type="checkbox"
                           checked={h.is_open}
-                          onChange={e => setHours(prev => prev.map((x, j) => j === i ? { ...x, is_open: e.target.checked } : x))}
+                          onChange={e => {
+                            const open = e.target.checked;
+                            setHours(prev => prev.map((x, j) => j === i ? {
+                              ...x,
+                              is_open: open,
+                              ...(open && !x.start_time ? { start_time: '09:00', end_time: '18:00' } : {}),
+                            } : x));
+                          }}
                           className="sr-only peer"
                         />
                         <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />

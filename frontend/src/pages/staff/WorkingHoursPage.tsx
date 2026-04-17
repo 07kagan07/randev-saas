@@ -92,17 +92,18 @@ export default function StaffWorkingHoursPage() {
   const [blockOpen, setBlockOpen] = useState(false);
   const [saved,    setSaved]    = useState(false);
 
-  const { isLoading } = useQuery({
+  const { isLoading, data: hoursData } = useQuery({
     queryKey: ['my-working-hours', staffId],
     queryFn: () => api.get(`/staff/${staffId}/working-hours`).then(r => r.data),
     enabled: !!staffId,
-    onSuccess: (d: any) => {
-      if (d.data?.length === 7) {
-        const sorted = [...d.data].sort((a: WorkingHour, b: WorkingHour) => a.day_of_week - b.day_of_week);
-        setHours(sorted);
-      }
-    },
-  } as any);
+  });
+
+  React.useEffect(() => {
+    const list = hoursData?.data;
+    if (Array.isArray(list) && list.length === 7) {
+      setHours([...list].sort((a: WorkingHour, b: WorkingHour) => a.day_of_week - b.day_of_week));
+    }
+  }, [hoursData]);
 
   const saveHours = useMutation({
     mutationFn: () => {
@@ -179,7 +180,7 @@ export default function StaffWorkingHoursPage() {
 
   return (
     <div className="max-w-xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Çalışma Saatlerim</h1>
+      
 
       {/* ── Haftalık Program ─────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-200 mb-5 overflow-hidden">
@@ -197,7 +198,13 @@ export default function StaffWorkingHoursPage() {
                   <input
                     type="checkbox"
                     checked={h.is_open}
-                    onChange={e => updateHour(i, { is_open: e.target.checked })}
+                    onChange={e => {
+                      const open = e.target.checked;
+                      updateHour(i, {
+                        is_open: open,
+                        ...(open && !h.start_time ? { start_time: '09:00', end_time: '18:00' } : {}),
+                      });
+                    }}
                     className="sr-only peer"
                   />
                   <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />

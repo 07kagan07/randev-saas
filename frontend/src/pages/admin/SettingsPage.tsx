@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Copy, Check } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import api from '../../services/api';
 import axios from 'axios';
@@ -10,13 +11,15 @@ export default function AdminSettingsPage() {
   const qc = useQueryClient();
 
   const [form, setForm] = useState({
-    name: '', slug: '', phone: '', address: '', description: '',
+    name: '', phone: '', address: '', description: '', slot_interval_minutes: 30,
   });
+  const [slug, setSlug] = useState('');
   const [notif, setNotif] = useState({
     sms_on_new: true, sms_on_cancel: true, sms_reminder: true, reminder_minutes_before: 60,
   });
   const [saved, setSaved] = useState(false);
   const [savedNotif, setSavedNotif] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [ticket, setTicket] = useState({ subject: '', message: '' });
   const [ticketSent, setTicketSent] = useState(false);
   const [qrLoading, setQrLoading] = useState(false);
@@ -35,7 +38,10 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     const b = bizData?.data;
-    if (b) setForm({ name: b.name ?? '', slug: b.slug ?? '', phone: b.phone ?? '', address: b.address ?? '', description: b.description ?? '' });
+    if (b) {
+      setForm({ name: b.name ?? '', phone: b.phone ?? '', address: b.address ?? '', description: b.description ?? '', slot_interval_minutes: b.slot_interval_minutes ?? 30 });
+      setSlug(b.slug ?? '');
+    }
   }, [bizData]);
 
   useEffect(() => {
@@ -79,7 +85,7 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="max-w-2xl space-y-8">
-      <h1 className="text-2xl font-bold text-gray-900">Ayarlar</h1>
+
 
       {/* İşletme Bilgileri */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -91,11 +97,17 @@ export default function AdminSettingsPage() {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Slug (URL)</label>
-            <div className="flex rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
-              <span className="inline-flex items-center px-3 bg-gray-50 text-gray-500 text-sm border-r border-gray-300">site.com/</span>
-              <input value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value }))}
-                className="flex-1 px-3 py-2 text-sm outline-none" placeholder="isletme-adiniz" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Randevu Linki</label>
+            <div className="flex rounded-lg border border-gray-200 bg-gray-50 overflow-hidden">
+              <span className="inline-flex items-center px-3 text-gray-400 text-sm border-r border-gray-200 whitespace-nowrap">site.com/</span>
+              <span className="flex-1 px-3 py-2 text-sm text-gray-700 select-all">{slug}</span>
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/${slug}`); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                className="px-3 flex items-center gap-1.5 text-sm text-gray-500 hover:text-indigo-600 border-l border-gray-200 transition-colors"
+              >
+                {copied ? <><Check className="w-4 h-4 text-green-500" /><span className="text-green-600">Kopyalandı</span></> : <><Copy className="w-4 h-4" /><span>Kopyala</span></>}
+              </button>
             </div>
           </div>
           <div>
@@ -112,6 +124,17 @@ export default function AdminSettingsPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
             <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Randevu Slot Aralığı (dakika)</label>
+            <p className="text-xs text-gray-400 mb-2">Müşteriye sunulan saat seçenekleri arasındaki süre. Örn: 30 dk → 09:00, 09:30, 10:00…</p>
+            <select value={form.slot_interval_minutes}
+              onChange={e => setForm(f => ({ ...f, slot_interval_minutes: Number(e.target.value) }))}
+              className="w-40 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              {[10, 15, 20, 30, 45, 60, 90, 120].map(v => (
+                <option key={v} value={v}>{v} dakika</option>
+              ))}
+            </select>
           </div>
           <button onClick={() => saveBiz.mutate()} disabled={saveBiz.isPending}
             className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium px-5 py-2.5 rounded-lg">

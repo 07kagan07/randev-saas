@@ -65,6 +65,7 @@ export class AvailabilityService {
     }
 
     const timezone = business.timezone;
+    const slotInterval = business.slot_interval_minutes ?? 30;
 
     // Personeli belirle
     let staffMembers: User[];
@@ -85,6 +86,13 @@ export class AvailabilityService {
       staffMembers = staffServices
         .map((ss) => ss.staff)
         .filter((s) => s && s.business_id === query.business_id && s.is_active);
+
+      // Servise özel atama yoksa işletmenin tüm aktif personelini kullan
+      if (staffMembers.length === 0) {
+        staffMembers = await this.userRepo.find({
+          where: { business_id: query.business_id, is_active: true },
+        });
+      }
     }
 
     if (staffMembers.length === 0) {
@@ -111,6 +119,7 @@ export class AvailabilityService {
       const slots = await this.getSlotsForStaff(
         staff,
         service.duration_minutes,
+        slotInterval,
         query.date,
         dayOfWeek,
         timezone,
@@ -118,20 +127,36 @@ export class AvailabilityService {
       allSlots.push(...slots);
     }
 
-    // Slotları sırala
-    allSlots.sort((a, b) => a.start_utc.localeCompare(b.start_utc));
+    // Personel seçilmediyse aynı saati birden fazla personelden gelince tekrarı önle.
+    // Her unique start_utc için: available=true olan varsa onu al, yoksa ilkini al.
+    let finalSlots: TimeSlot[];
+    if (!query.staff_id) {
+      const map = new Map<string, TimeSlot>();
+      for (const slot of allSlots) {
+        const existing = map.get(slot.start_utc);
+        if (!existing || (!existing.available && slot.available)) {
+          map.set(slot.start_utc, slot);
+        }
+      }
+      finalSlots = Array.from(map.values());
+    } else {
+      finalSlots = allSlots;
+    }
+
+    finalSlots.sort((a, b) => a.start_utc.localeCompare(b.start_utc));
 
     return {
       date: query.date,
       timezone,
       service: { id: service.id, name: service.name, duration_minutes: service.duration_minutes },
-      slots: allSlots,
+      slots: finalSlots,
     };
   }
 
   private async getSlotsForStaff(
     staff: User,
     durationMinutes: number,
+    slotInterval: number,
     date: string,
     dayOfWeek: number,
     timezone: string,
@@ -201,7 +226,7 @@ export class AvailabilityService {
         staff_name: staff.full_name || undefined,
       });
 
-      current = slotEnd;
+      current = current.plus({ minutes: slotInterval });
     }
 
     return slots;

@@ -1,136 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronLeft, ChevronRight, Scissors, Sparkles, Flame, Leaf, Star, Dumbbell, Store, Wrench, Droplets, Plus, Trash2, Clock } from 'lucide-react';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { Check, ChevronLeft, ChevronRight, Sparkles, Plus, Trash2, Clock } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import api from '../../services/api';
 
 // ─── Sabitler ────────────────────────────────────────────────────────────────
 
-const CATEGORIES = [
-  { key: 'barber',        label: 'Berber',          Icon: Scissors },
-  { key: 'hair_salon',    label: 'Kuaför',           Icon: Sparkles },
-  { key: 'beauty_center', label: 'Güzellik Salonu',  Icon: Flame },
-  { key: 'spa',           label: 'Spa & Masaj',      Icon: Leaf },
-  { key: 'nail_art',      label: 'Nail Stüdyo',      Icon: Star },
-  { key: 'fitness',       label: 'Fitness / Spor',   Icon: Dumbbell },
-  { key: 'car_wash',      label: 'Araç Yıkama',      Icon: Droplets },
-  { key: 'car_service',   label: 'Araç Bakım',       Icon: Wrench },
-  { key: 'other',         label: 'Diğer',            Icon: Store },
-] as const;
-
-type CategoryKey = typeof CATEGORIES[number]['key'];
-
-type ServiceTemplate = { name: string; duration: number; price: number };
-type ServiceGroup = { group: string; services: ServiceTemplate[] };
-
-const SERVICE_TEMPLATES: Record<CategoryKey, ServiceGroup[]> = {
-  barber: [
-    { group: 'Saç Hizmetleri', services: [
-      { name: 'Saç Kesimi',       duration: 30, price: 150 },
-      { name: 'Sakal Kesimi',     duration: 20, price: 100 },
-      { name: 'Saç + Sakal',      duration: 45, price: 220 },
-      { name: 'Çocuk Saç Kesimi', duration: 20, price: 100 },
-      { name: 'Saç Yıkama',       duration: 15, price:  80 },
-    ]},
-    { group: 'Cilt & Bakım', services: [
-      { name: 'Yüz Maskesi',      duration: 20, price: 150 },
-      { name: 'Cilt Bakımı',      duration: 30, price: 200 },
-    ]},
-  ],
-  hair_salon: [
-    { group: 'Kesim & Şekillendirme', services: [
-      { name: 'Saç Kesimi', duration: 45, price: 200 },
-      { name: 'Fön',        duration: 30, price: 150 },
-    ]},
-    { group: 'Renk & Bakım', services: [
-      { name: 'Saç Boyama',       duration:  90, price: 500 },
-      { name: 'Röfle / Balayage', duration: 120, price: 700 },
-      { name: 'Keratin Bakımı',   duration:  90, price: 600 },
-      { name: 'Ombre',            duration: 120, price: 750 },
-    ]},
-  ],
-  beauty_center: [
-    { group: 'Cilt Bakımı', services: [
-      { name: 'Cilt Bakımı',  duration: 60, price: 350 },
-      { name: 'Yüz Maskesi',  duration: 30, price: 200 },
-    ]},
-    { group: 'Tırnak Bakımı', services: [
-      { name: 'Manikür', duration: 45, price: 200 },
-      { name: 'Pedikür', duration: 60, price: 250 },
-    ]},
-    { group: 'Epilasyon', services: [
-      { name: 'Kaş Şekillendirme', duration: 20, price: 100 },
-      { name: 'Ağda',              duration: 30, price: 150 },
-    ]},
-  ],
-  spa: [
-    { group: 'Masaj', services: [
-      { name: 'Klasik Masaj', duration: 60, price: 500 },
-      { name: 'Aromaterapi',  duration: 60, price: 600 },
-      { name: 'Çift Masajı',  duration: 60, price: 900 },
-    ]},
-    { group: 'Yüz & Cilt', services: [
-      { name: 'Yüz Bakımı', duration: 60, price: 400 },
-    ]},
-    { group: 'Hamam & Kese', services: [
-      { name: 'Hamam',          duration: 60, price: 350 },
-      { name: 'Kese & Köpük',   duration: 45, price: 300 },
-    ]},
-  ],
-  nail_art: [
-    { group: 'Doğal Tırnak', services: [
-      { name: 'Tırnak Bakımı', duration: 45, price: 250 },
-      { name: 'Kalıcı Oje',    duration: 60, price: 350 },
-    ]},
-    { group: 'Uzatma & Tasarım', services: [
-      { name: 'Protez Tırnak', duration: 90, price: 500 },
-      { name: 'Nail Art',      duration: 30, price: 200 },
-    ]},
-  ],
-  fitness: [
-    { group: 'Birebir Antrenman', services: [
-      { name: 'Personal Training', duration: 60, price: 400 },
-    ]},
-    { group: 'Grup Dersleri', services: [
-      { name: 'Pilates', duration: 50, price: 300 },
-      { name: 'Yoga',    duration: 60, price: 250 },
-    ]},
-  ],
-  car_wash: [
-    { group: 'Dış Temizlik', services: [
-      { name: 'Dış Yıkama',    duration: 20, price: 150 },
-      { name: 'İç + Dış Yıkama', duration: 45, price: 300 },
-    ]},
-    { group: 'İç Temizlik', services: [
-      { name: 'Detaylı İç Temizlik', duration: 60, price: 400 },
-      { name: 'Koltuk Temizliği',    duration: 60, price: 350 },
-    ]},
-    { group: 'Özel Bakım', services: [
-      { name: 'Motor Yıkama', duration: 30, price: 250 },
-      { name: 'Pasta & Cila', duration: 90, price: 700 },
-    ]},
-  ],
-  car_service: [
-    { group: 'Periyodik Bakım', services: [
-      { name: 'Yağ Değişimi',    duration: 30, price:  500 },
-      { name: 'Periyodik Bakım', duration: 90, price: 1500 },
-      { name: 'Akü Değişimi',    duration: 20, price:  600 },
-    ]},
-    { group: 'Fren & Güvenlik', services: [
-      { name: 'Lastik Değişimi (4 adet)', duration: 30, price: 400 },
-      { name: 'Fren Bakımı',              duration: 60, price: 800 },
-    ]},
-    { group: 'Diğer Hizmetler', services: [
-      { name: 'Far Ayarı',    duration: 20, price: 200 },
-      { name: 'Klima Bakımı', duration: 45, price: 700 },
-    ]},
-  ],
-  other: [],
-};
-
 const DAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 // ─── Yardımcı ─────────────────────────────────────────────────────────────────
 
@@ -141,7 +19,7 @@ function clearLegacyLs(bid: string) {
 }
 
 function ProgressBar({ step }: { step: number }) {
-  const labels = ['İşletme Tipi', 'Bilgiler', 'Hizmetler', 'Personel', 'Saatler', 'Tamamlandı'];
+  const labels = ['İşletme Adı', 'İşletme Tipi', 'Bilgiler', 'Hizmetler', 'Personel', 'Saatler', 'Tamamlandı'];
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between mb-3">
@@ -205,33 +83,89 @@ function Card({ title, subtitle, children, onNext, onBack, onSkip, nextLabel = '
   );
 }
 
+// ─── Adım 0: İşletme Adı (henüz işletme yok) ────────────────────────────────
+
+function Step0BusinessName({ onCreated }: {
+  onCreated: (bid: string, accessToken: string, updatedUser: any) => void;
+}) {
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const save = async () => {
+    if (!name.trim()) return;
+    setLoading(true); setError('');
+    try {
+      const { data } = await api.post('/auth/setup-business', { name: name.trim() });
+      onCreated(data.data.user.business_id, data.data.access_token, data.data.user);
+    } catch (e: any) {
+      setError(e.response?.data?.message || 'Bir hata oluştu.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card
+      title="İşletmenizin adı ne?"
+      subtitle="Müşterileriniz bu adı görecek. Daha sonra ayarlardan değiştirebilirsiniz."
+      onNext={save}
+      nextDisabled={!name.trim()}
+      loading={loading}
+    >
+      <input
+        value={name}
+        onChange={e => setName(e.target.value)}
+        onKeyDown={e => e.key === 'Enter' && save()}
+        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+        placeholder="Örn: Ahmet Berber Salonu"
+        autoFocus
+      />
+      {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+    </Card>
+  );
+}
+
 // ─── Adım 1: İşletme Tipi ────────────────────────────────────────────────────
 
-function Step1Category({ onNext, initialCategory }: { onNext: (cat: CategoryKey) => void; initialCategory?: CategoryKey }) {
-  const [selected, setSelected] = useState<CategoryKey | null>(initialCategory ?? null);
+interface BusinessTypeOption { id: string; name: string; icon: string | null; template_services: any[]; }
+
+function Step1Category({ onNext, initialTypeId }: { onNext: (typeId: string, type: BusinessTypeOption) => void; initialTypeId?: string }) {
+  const [selectedId, setSelectedId] = useState<string | null>(initialTypeId ?? null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['business-types-public'],
+    queryFn: () => api.get('/business-types?active=true').then(r => (r.data?.data ?? r.data) as BusinessTypeOption[]),
+  });
+  const types: BusinessTypeOption[] = Array.isArray(data) ? data : [];
+
   return (
     <Card
       title="İşletme tipiniz nedir?"
       subtitle="Türüne göre size hazır hizmet şablonları sunacağız."
-      onNext={() => selected && onNext(selected)}
-      nextDisabled={!selected}
+      onNext={() => { const t = types.find(t => t.id === selectedId); if (t) onNext(t.id, t); }}
+      nextDisabled={!selectedId}
     >
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {CATEGORIES.map(({ key, label, Icon }) => (
-          <button
-            key={key}
-            onClick={() => setSelected(key)}
-            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-              selected === key
-                ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
-                : 'border-gray-200 hover:border-indigo-300 text-gray-600'
-            }`}
-          >
-            <Icon className="w-6 h-6" />
-            <span className="text-xs font-medium text-center">{label}</span>
-          </button>
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" /></div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {types.map((bt) => (
+            <button
+              key={bt.id}
+              onClick={() => setSelectedId(bt.id)}
+              className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                selectedId === bt.id
+                  ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                  : 'border-gray-200 hover:border-indigo-300 text-gray-600'
+              }`}
+            >
+              <span className="text-2xl">{bt.icon ?? '🏪'}</span>
+              <span className="text-xs font-medium text-center">{bt.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
@@ -311,29 +245,107 @@ function Step2Info({ bid, onNext, onBack, onSkip, initialValues }: {
 
 // ─── Adım 3: Hizmetler ───────────────────────────────────────────────────────
 
-interface ServiceRow { name: string; duration: number; price: number; selected: boolean; group?: string; }
+interface ServiceRow { name: string; duration: number; price: number; selected: boolean; group?: string; category?: string; }
 
-function Step3Services({ bid, category, onNext, onBack, onSkip }: {
-  bid: string; category: CategoryKey; onNext: () => void; onBack: () => void; onSkip: () => void;
+// ─── Kategori Autocomplete ────────────────────────────────────────────────────
+
+function CategoryInput({ value, onChange, suggestions }: {
+  value: string;
+  onChange: (v: string) => void;
+  suggestions: string[];
 }) {
-  const groups = SERVICE_TEMPLATES[category] ?? [];
-  const [services, setServices] = useState<ServiceRow[]>(
-    groups.flatMap(g => g.services.map(s => ({ ...s, selected: true, group: g.group })))
+  const [open, setOpen] = useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  const filtered = value.trim()
+    ? suggestions.filter(s => s.toLowerCase().includes(value.toLowerCase()) && s !== value)
+    : suggestions;
+
+  // Dışarı tıklayınca kapat
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        value={value}
+        onChange={e => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        className={`w-full text-xs bg-transparent outline-none border-b placeholder-gray-300 ${
+          !value.trim() ? 'border-red-400 text-red-500' : 'border-gray-200 text-gray-500'
+        }`}
+        placeholder="Kategori *"
+      />
+      {open && filtered.length > 0 && (
+        <ul className="absolute left-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg w-full max-h-36 overflow-y-auto">
+          {filtered.map(s => (
+            <li
+              key={s}
+              onMouseDown={e => { e.preventDefault(); onChange(s); setOpen(false); }}
+              className="px-3 py-2 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer"
+            >
+              {s}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function Step3Services({ bid, businessType, onNext, onBack, onSkip }: {
+  bid: string; businessType: BusinessTypeOption | null; onNext: () => void; onBack: () => void; onSkip: () => void;
+}) {
+  const templateRows: ServiceRow[] = businessType?.template_services?.map((s: any) => ({
+    name: s.name,
+    duration: s.duration_minutes,
+    price: s.price,
+    selected: true,
+    group: s.category || undefined,
+    category: s.category || '',
+  })) ?? [];
+
+  const [services, setServices] = useState<ServiceRow[]>(templateRows);
   const [loading, setLoading] = useState(false);
+  const [categorySuggestions, setCategorySuggestions] = useState<string[]>([]);
   const listRef = React.useRef<HTMLDivElement>(null);
+
+  // Mevcut hizmetlerden + template kategorilerinden öneri listesi oluştur
+  useEffect(() => {
+    const templateCategories = Array.from(new Set(
+      (businessType?.template_services ?? []).map((s: any) => s.category).filter(Boolean)
+    ));
+    api.get(`/businesses/${bid}/services`).then(({ data }) => {
+      const existing: string[] = (data.data ?? [])
+        .map((s: any) => s.category)
+        .filter(Boolean);
+      setCategorySuggestions(Array.from(new Set([...templateCategories, ...existing])));
+    }).catch(() => {
+      setCategorySuggestions(templateCategories as string[]);
+    });
+  }, [bid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateRow = (i: number, patch: Partial<ServiceRow>) =>
     setServices(prev => prev.map((s, j) => j === i ? { ...s, ...patch } : s));
 
   const addCustom = () => {
-    setServices(prev => [...prev, { name: '', duration: 30, price: 0, selected: true }]);
+    setServices(prev => [...prev, { name: '', duration: 30, price: 0, selected: true, category: '' }]);
     setTimeout(() => {
       listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
     }, 50);
   };
 
   const remove = (i: number) => setServices(prev => prev.filter((_, j) => j !== i));
+
+  // Seçili custom hizmetlerin hepsinde kategori dolu mu?
+  const hasInvalidCustom = services.some(s => s.selected && s.name.trim() && !s.group && !s.category?.trim());
 
   const save = async () => {
     const toCreate = services.filter(s => s.selected && s.name.trim());
@@ -342,7 +354,10 @@ function Step3Services({ bid, category, onNext, onBack, onSkip }: {
     try {
       await Promise.all(toCreate.map(s =>
         api.post(`/businesses/${bid}/services`, {
-          name: s.name, duration_minutes: s.duration, price: s.price,
+          name: s.name,
+          duration_minutes: s.duration,
+          price: s.price,
+          category: s.category?.trim() || undefined,
         })
       ));
       onNext();
@@ -352,7 +367,7 @@ function Step3Services({ bid, category, onNext, onBack, onSkip }: {
   };
 
   return (
-    <Card title="Hangi hizmetleri sunuyorsunuz?" subtitle="Seçimleri düzenleyebilir, fiyat ve süre ekleyebilirsiniz." onNext={save} onBack={onBack} onSkip={onSkip} loading={loading}>
+    <Card title="Hangi hizmetleri sunuyorsunuz?" subtitle="Seçimleri düzenleyebilir, fiyat ve süre ekleyebilirsiniz." onNext={save} onBack={onBack} onSkip={onSkip} loading={loading} nextDisabled={hasInvalidCustom}>
       <div ref={listRef} className="space-y-1.5 max-h-96 overflow-y-auto pr-1">
         {services.map((s, i) => {
           const showHeader = s.group && (i === 0 || services[i - 1].group !== s.group);
@@ -407,6 +422,16 @@ function Step3Services({ bid, category, onNext, onBack, onSkip }: {
                     <span className="text-xs text-gray-400">₺</span>
                   </div>
                 </div>
+                {/* Satır 3: custom hizmetler için zorunlu kategori + autocomplete */}
+                {!s.group && (
+                  <div className="mt-2 ml-6">
+                    <CategoryInput
+                      value={s.category ?? ''}
+                      onChange={v => updateRow(i, { category: v })}
+                      suggestions={categorySuggestions}
+                    />
+                  </div>
+                )}
               </div>
             </React.Fragment>
           );
@@ -645,13 +670,15 @@ export default function OnboardingPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  const bid = user?.business_id!;
   const userId = user?.id!;
   const userName = user?.full_name || 'Siz';
 
+  // bid: null ise henüz işletme yok (step 0 gösterilir)
+  const [bid, setBid] = useState<string | null>(user?.business_id ?? null);
   const [step, setStep] = useState<number>(0);
   const [skippedSteps, setSkippedSteps] = useState<number[]>([]);
-  const [category, setCategory] = useState<CategoryKey>('other');
+  const [selectedBusinessTypeId, setSelectedBusinessTypeId] = useState<string | null>(null);
+  const [selectedBusinessType, setSelectedBusinessType] = useState<BusinessTypeOption | null>(null);
   const [initialInfo, setInitialInfo] = useState({ phone: '', address: '', description: '' });
   const [ownerWorking, setOwnerWorking] = useState(true);
   const [staffList, setStaffList] = useState<{ id?: string; full_name: string; phone: string; saved: boolean }[]>([]);
@@ -659,11 +686,11 @@ export default function OnboardingPage() {
   // İşletme verilerini yükle → form pre-fill + adımı geri yükle
   useEffect(() => {
     if (!bid) return;
-    clearLegacyLs(bid); // eski localStorage'ı temizle
+    clearLegacyLs(bid);
     api.get(`/businesses/${bid}`).then(({ data }) => {
       const biz = data.data;
-      if (biz.category && CATEGORIES.some(c => c.key === biz.category)) {
-        setCategory(biz.category as CategoryKey);
+      if (biz.business_type_id) {
+        setSelectedBusinessTypeId(biz.business_type_id);
       }
       setInitialInfo({
         phone: biz.phone ? biz.phone.replace(/^\+90/, '') : '',
@@ -673,10 +700,19 @@ export default function OnboardingPage() {
       const skipped: number[] = biz.onboarding_skipped_steps ?? [];
       const savedStep: number = biz.onboarding_step ?? 0;
       setSkippedSteps(skipped);
-      // Atlanan adım varsa oraya, değilse kayıtlı adıma git
       setStep(skipped.length > 0 ? Math.min(...skipped) : savedStep);
     }).catch(() => {});
   }, [bid]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // İşletme adı kaydedilince auth store'u güncelle ve bid'i set et
+  const handleBusinessCreated = (newBid: string, accessToken: string, updatedUser: any) => {
+    useAuthStore.setState(state => ({
+      accessToken,
+      user: state.user ? { ...state.user, ...updatedUser } : updatedUser,
+    }));
+    setBid(newBid);
+    setStep(0); // category adımına geç
+  };
 
   // İlerlemeyi backend'e kaydet (fire-and-forget)
   const persist = (newStep: number, newSkipped: number[]) => {
@@ -713,9 +749,10 @@ export default function OnboardingPage() {
   // Mevcut adım daha önce atlandı mı?
   const isResuming = skippedSteps.includes(step);
 
-  const handleCategory = async (cat: CategoryKey) => {
-    setCategory(cat);
-    await api.patch(`/businesses/${bid}`, { category: cat });
+  const handleCategory = async (typeId: string, type: BusinessTypeOption) => {
+    setSelectedBusinessTypeId(typeId);
+    setSelectedBusinessType(type);
+    await api.patch(`/businesses/${bid}`, { business_type_id: typeId });
     isResuming ? completeSkipped(0) : advance();
   };
 
@@ -751,9 +788,11 @@ export default function OnboardingPage() {
           <p className="text-sm text-gray-500 mt-1">Bu adımları dilediğiniz zaman ayarlardan değiştirebilirsiniz.</p>
         </div>
 
-        <ProgressBar step={step} />
+        {/* bid yoksa step 0 (İşletme Adı), varsa step+1 (category=1, info=2, ...) */}
+        <ProgressBar step={bid ? step + 1 : 0} />
 
-        {step === 0 && <Step1Category onNext={handleCategory} initialCategory={category} />}
+        {!bid && <Step0BusinessName onCreated={handleBusinessCreated} />}
+        {bid && step === 0 && <Step1Category onNext={handleCategory} initialTypeId={selectedBusinessTypeId ?? undefined} />}
         {step === 1 && (
           <Step2Info
             bid={bid}
@@ -766,7 +805,7 @@ export default function OnboardingPage() {
         {step === 2 && (
           <Step3Services
             bid={bid}
-            category={category}
+            businessType={selectedBusinessType}
             onNext={nextFor(2)}
             onBack={() => setStep(1)}
             onSkip={skipFor(2)}

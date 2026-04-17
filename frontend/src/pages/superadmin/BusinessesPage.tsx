@@ -81,8 +81,8 @@ export default function BusinessesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">İşletmeler</h1>
+      <div className="flex items-center justify-end mb-6">
+
         <button
           onClick={() => { setCreateOpen(true); setCreateForm(emptyCreate); setCreateError(''); }}
           className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg"

@@ -11,6 +11,7 @@ import { AppointmentLog } from './entities/appointment-log.entity';
 import { NotificationSettings } from './entities/notification-settings.entity';
 import { SupportTicket } from './entities/support-ticket.entity';
 import { PushSubscription } from './entities/push-subscription.entity';
+import { BusinessType } from './entities/business-type.entity';
 
 dotenv.config();
 
@@ -20,7 +21,7 @@ const dataSource = new DataSource({
   entities: [
     Business, User, Service, StaffService, WorkingHours,
     BlockedPeriod, Appointment, AppointmentLog,
-    NotificationSettings, SupportTicket, PushSubscription,
+    NotificationSettings, SupportTicket, PushSubscription, BusinessType,
   ],
   migrations: [__dirname + '/migrations/*.js'],
   synchronize: false,

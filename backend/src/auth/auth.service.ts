@@ -13,6 +13,7 @@ import { Business } from '../database/entities/business.entity';
 import { NotificationSettings } from '../database/entities/notification-settings.entity';
 import { WorkingHours } from '../database/entities/working-hours.entity';
 import { REDIS_CLIENT } from '../config/redis.module';
+import { slugify } from '../common/utils/slugify';
 import { SmsService } from '../notifications/sms/sms.service';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 
@@ -46,13 +47,8 @@ export class AuthService {
       });
     }
 
-    // 6 haneli OTP üret
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Redis'e kaydet — TTL: 5 dakika (300 saniye)
     await this.redis.set(`otp:${phone}`, otp, 'EX', 300);
-
-    // SMS gönder
     await this.smsService.sendOtp(phone, otp);
 
     return { message: 'Doğrulama kodu gönderildi.' };
@@ -64,7 +60,6 @@ export class AuthService {
     otp: string,
     res: any,
   ): Promise<{ access_token: string; user: Partial<User> & { onboarding_completed: boolean } }> {
-    // OTP kontrol
     const storedOtp = await this.redis.get(`otp:${phone}`);
 
     if (!storedOtp) {
@@ -83,10 +78,8 @@ export class AuthService {
       });
     }
 
-    // OTP kullanıldı — sil
     await this.redis.del(`otp:${phone}`);
 
-    // Kullanıcıyı bul veya oluşturma (sadece kayıtlı kullanıcılar giriş yapabilir)
     const user = await this.userRepo.findOne({
       where: { phone },
       relations: ['business'],
@@ -108,7 +101,6 @@ export class AuthService {
       });
     }
 
-    // Access Token (15m)
     const accessToken = this.jwtService.sign({
       sub: user.id,
       phone: user.phone,
@@ -116,12 +108,10 @@ export class AuthService {
       business_id: user.business_id,
     });
 
-    // Refresh Token (30d)
     const refreshToken = uuidv4();
-    const refreshTtl = 30 * 24 * 60 * 60; // 30 gün saniye cinsinden
+    const refreshTtl = 30 * 24 * 60 * 60;
     await this.redis.set(`refresh:${refreshToken}`, user.id, 'EX', refreshTtl);
 
-    // HttpOnly Cookie olarak ayarla
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
       secure: this.configService.get('NODE_ENV') === 'production',
@@ -138,7 +128,9 @@ export class AuthService {
         role: user.role,
         business_id: user.business_id,
         avatar_url: user.avatar_url,
-        onboarding_completed: user.business?.onboarding_completed ?? true,
+        onboarding_completed: user.business_id
+          ? (user.business?.onboarding_completed ?? false)
+          : false,
       },
     };
   }
@@ -146,7 +138,6 @@ export class AuthService {
   // Token Yenile
   async refreshToken(
     refreshToken: string,
-    res: any,
   ): Promise<{ access_token: string; user: Partial<User> & { onboarding_completed: boolean } }> {
     if (!refreshToken) {
       throw new UnauthorizedException({
@@ -156,7 +147,6 @@ export class AuthService {
       });
     }
 
-    // Blacklist kontrolü
     const isBlacklisted = await this.redis.get(`blacklist:${refreshToken}`);
     if (isBlacklisted) {
       throw new UnauthorizedException({
@@ -166,7 +156,6 @@ export class AuthService {
       });
     }
 
-    // Kullanıcıyı bul
     const userId = await this.redis.get(`refresh:${refreshToken}`);
     if (!userId) {
       throw new UnauthorizedException({
@@ -185,7 +174,6 @@ export class AuthService {
       });
     }
 
-    // Yeni access token
     const accessToken = this.jwtService.sign({
       sub: user.id,
       phone: user.phone,
@@ -202,15 +190,17 @@ export class AuthService {
         role: user.role,
         business_id: user.business_id,
         avatar_url: user.avatar_url,
-        onboarding_completed: user.business?.onboarding_completed ?? true,
+        onboarding_completed: user.business_id
+          ? (user.business?.onboarding_completed ?? false)
+          : false,
       },
     };
   }
 
-  // İşletme Kaydı (public self-registration)
+  // Kullanıcı Kaydı (kişisel bilgiler, işletme bilgileri onboarding'de alınır)
   async registerBusiness(dto: RegisterBusinessDto): Promise<{ message: string }> {
     // Telefon çakışması kontrolü
-    const existing = await this.userRepo.findOne({ where: { phone: dto.owner_phone } });
+    const existing = await this.userRepo.findOne({ where: { phone: dto.phone } });
     if (existing) {
       throw new ConflictException({
         code: 'PHONE_EXISTS',
@@ -219,11 +209,52 @@ export class AuthService {
       });
     }
 
+    // OTP doğrula
+    const storedOtp = await this.redis.get(`otp:${dto.phone}`);
+    if (!storedOtp) {
+      throw new BadRequestException({
+        code: 'OTP_EXPIRED',
+        message: 'Doğrulama kodunun süresi dolmuş. Yeni kod isteyin.',
+        message_en: 'Verification code has expired. Please request a new one.',
+      });
+    }
+    if (storedOtp !== dto.otp) {
+      throw new BadRequestException({
+        code: 'OTP_INVALID',
+        message: 'Doğrulama kodu hatalı. Lütfen tekrar deneyin.',
+        message_en: 'Invalid verification code. Please try again.',
+      });
+    }
+    await this.redis.del(`otp:${dto.phone}`);
+
+    await this.userRepo.save(
+      this.userRepo.create({
+        phone: dto.phone,
+        full_name: dto.full_name,
+        role: UserRole.BUSINESS_ADMIN,
+        business_id: null,
+      }),
+    );
+
+    return { message: 'Hesabınız oluşturuldu. Giriş yapabilirsiniz.' };
+  }
+
+  // İşletme Kurulumu (onboarding adım 0 — işletme adı girişi)
+  async setupBusiness(
+    userId: string,
+    businessName: string,
+  ): Promise<{ access_token: string; user: Partial<User> & { onboarding_completed: boolean } }> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException({
+        code: 'USER_NOT_FOUND',
+        message: 'Kullanıcı bulunamadı.',
+        message_en: 'User not found.',
+      });
+    }
+
     // Slug oluştur
-    const baseSlug = (dto.slug || dto.business_name)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+    const baseSlug = slugify(businessName);
 
     let slug = baseSlug;
     let suffix = 1;
@@ -231,28 +262,17 @@ export class AuthService {
       slug = `${baseSlug}-${suffix++}`;
     }
 
-    // Business oluştur
+    // İşletme oluştur
     const business = await this.businessRepo.save(
-      this.businessRepo.create({ name: dto.business_name, slug }),
+      this.businessRepo.create({ name: businessName, slug }),
     );
 
     // Varsayılan bildirim ayarları
     await this.notifRepo.save(this.notifRepo.create({ business_id: business.id }));
 
-    // Owner kullanıcı oluştur
-    const owner = await this.userRepo.save(
-      this.userRepo.create({
-        phone: dto.owner_phone,
-        full_name: dto.owner_name ?? null,
-        role: UserRole.BUSINESS_ADMIN,
-        business_id: business.id,
-      }),
-    );
-
-    // Owner için varsayılan çalışma saatlerini oluştur (hepsi kapalı)
-    // Böylece solo çalışan işletme sahibi hemen randevu alabilir
+    // Owner için varsayılan çalışma saatleri (hepsi kapalı)
     const defaultHours = Array.from({ length: 7 }, (_, i) => ({
-      staff_id: owner.id,
+      staff_id: user.id,
       day_of_week: i,
       is_open: false,
       start_time: null,
@@ -260,24 +280,44 @@ export class AuthService {
     }));
     await this.workingHoursRepo.save(defaultHours);
 
-    return { message: 'Hesabınız oluşturuldu. Giriş yapabilirsiniz.' };
+    // Kullanıcıya işletmeyi bağla
+    user.business_id = business.id;
+    await this.userRepo.save(user);
+
+    // business_id dahil yeni access token
+    const accessToken = this.jwtService.sign({
+      sub: user.id,
+      phone: user.phone,
+      role: user.role,
+      business_id: business.id,
+    });
+
+    return {
+      access_token: accessToken,
+      user: {
+        id: user.id,
+        full_name: user.full_name,
+        phone: user.phone,
+        role: user.role,
+        business_id: business.id,
+        avatar_url: user.avatar_url,
+        onboarding_completed: false,
+      },
+    };
   }
 
   // Logout
   async logout(refreshToken: string, res: any): Promise<{ message: string }> {
     if (refreshToken) {
-      // Blacklist'e al (30 günlük TTL)
       await this.redis.set(
         `blacklist:${refreshToken}`,
         '1',
         'EX',
         30 * 24 * 60 * 60,
       );
-      // Aktif refresh token kaydını sil
       await this.redis.del(`refresh:${refreshToken}`);
     }
 
-    // Cookie'yi temizle
     res.clearCookie('refresh_token');
 
     return { message: 'Çıkış yapıldı.' };

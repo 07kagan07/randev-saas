@@ -27,4 +27,17 @@ export class UpdateBusinessDto extends PartialType(CreateBusinessDto) {
   @IsArray()
   @IsNumber({}, { each: true })
   onboarding_skipped_steps?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  category_order?: string[];
+
+  @IsOptional()
+  @IsString()
+  business_type_id?: string;
+
+  @IsOptional()
+  @IsInt()
+  slot_interval_minutes?: number;
 }

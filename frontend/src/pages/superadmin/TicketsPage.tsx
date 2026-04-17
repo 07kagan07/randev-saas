@@ -59,7 +59,7 @@ export default function TicketsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Destek Talepleri</h1>
+      
 
       {/* Filter */}
       <div className="flex gap-3 mb-6">

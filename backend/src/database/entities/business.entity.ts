@@ -1,6 +1,6 @@
 import {
   Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn, OneToMany,
+  CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn,
 } from 'typeorm';
 import { User } from './user.entity';
 import { Service } from './service.entity';
@@ -8,6 +8,7 @@ import { Appointment } from './appointment.entity';
 import { NotificationSettings } from './notification-settings.entity';
 import { SupportTicket } from './support-ticket.entity';
 import { BlockedPeriod } from './blocked-period.entity';
+import { BusinessType } from './business-type.entity';
 
 export enum BusinessCategory {
   BARBER = 'barber',
@@ -91,6 +92,19 @@ export class Business {
 
   @Column({ type: 'simple-json', default: '[]' })
   onboarding_skipped_steps: number[];
+
+  @Column({ type: 'simple-json', default: '[]' })
+  category_order: string[];
+
+  @Column({ type: 'int', default: 30 })
+  slot_interval_minutes: number;
+
+  @Column({ type: 'uuid', nullable: true })
+  business_type_id: string | null;
+
+  @ManyToOne(() => BusinessType, { nullable: true, eager: false })
+  @JoinColumn({ name: 'business_type_id' })
+  business_type: BusinessType | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;

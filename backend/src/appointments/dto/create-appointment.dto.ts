@@ -1,11 +1,12 @@
-import { IsString, IsUUID, IsISO8601, Length, Matches, IsOptional } from 'class-validator';
+import { IsString, IsUUID, IsISO8601, Length, Matches, IsOptional, IsObject } from 'class-validator';
 
 export class CreateAppointmentDto {
   @IsUUID()
   business_id: string;
 
+  @IsOptional()
   @IsUUID()
-  staff_id: string;
+  staff_id?: string;
 
   @IsUUID()
   service_id: string;
@@ -24,4 +25,8 @@ export class CreateAppointmentDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsObject()
+  extra_fields?: Record<string, string>;
 }

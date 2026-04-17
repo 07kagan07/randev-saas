@@ -12,6 +12,7 @@ import { AppointmentLog } from '../database/entities/appointment-log.entity';
 import { NotificationSettings } from '../database/entities/notification-settings.entity';
 import { SupportTicket } from '../database/entities/support-ticket.entity';
 import { PushSubscription } from '../database/entities/push-subscription.entity';
+import { BusinessType } from '../database/entities/business-type.entity';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { PushSubscription } from '../database/entities/push-subscription.entity'
           NotificationSettings,
           SupportTicket,
           PushSubscription,
+          BusinessType,
         ],
         migrations: ['dist/database/migrations/*.js'],
         migrationsRun: false,

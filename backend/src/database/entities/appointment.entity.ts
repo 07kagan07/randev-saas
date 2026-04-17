@@ -66,6 +66,9 @@ export class Appointment {
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
+  @Column({ type: 'simple-json', default: '{}' })
+  extra_fields: Record<string, string>;
+
   @CreateDateColumn({ type: 'timestamptz' })
   created_at: Date;
 

@@ -75,8 +75,8 @@ export default function AdminReportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-gray-900">Raporlar</h1>
+      <div className="flex flex-wrap items-center justify-end gap-3">
+
         <div className="flex gap-3 items-center">
           <input type="date" value={from} onChange={e => setFrom(e.target.value)}
             className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />

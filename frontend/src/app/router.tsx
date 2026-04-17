@@ -86,9 +86,10 @@ const StaffDashboard    = lazyLoad(() => import('../pages/staff/DashboardPage'))
 const StaffAppointments = lazyLoad(() => import('../pages/staff/AppointmentsPage'));
 const StaffWorkingHours = lazyLoad(() => import('../pages/staff/WorkingHoursPage'));
 
-const SuperAdminDashboard  = lazyLoad(() => import('../pages/superadmin/DashboardPage'));
-const SuperAdminBusinesses = lazyLoad(() => import('../pages/superadmin/BusinessesPage'));
-const SuperAdminTickets    = lazyLoad(() => import('../pages/superadmin/TicketsPage'));
+const SuperAdminDashboard     = lazyLoad(() => import('../pages/superadmin/DashboardPage'));
+const SuperAdminBusinesses    = lazyLoad(() => import('../pages/superadmin/BusinessesPage'));
+const SuperAdminTickets       = lazyLoad(() => import('../pages/superadmin/TicketsPage'));
+const SuperAdminBusinessTypes = lazyLoad(() => import('../pages/superadmin/BusinessTypesPage'));
 
 function Loader() {
   return (
@@ -185,7 +186,8 @@ export const router = createBrowserRouter([
         children: [
           { index: true,            element: S(SuperAdminDashboard)  },
           { path: 'businesses',     element: S(SuperAdminBusinesses) },
-          { path: 'tickets',        element: S(SuperAdminTickets)    },
+          { path: 'tickets',        element: S(SuperAdminTickets)       },
+          { path: 'business-types', element: S(SuperAdminBusinessTypes) },
         ],
       },
 
