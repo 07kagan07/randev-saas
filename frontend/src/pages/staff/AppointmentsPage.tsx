@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/auth.store';
 import ApptCard, { isArchived } from '../../components/shared/ApptCard';
 import { useBusinessSocket } from '../../hooks/useBusinessSocket';
 import api from '../../services/api';
+import { userLocale } from '../../utils/locale';
 
 function toDateStr(d: Date) {
   const y = d.getFullYear();
@@ -14,6 +16,7 @@ function toDateStr(d: Date) {
 }
 
 export default function StaffAppointmentsPage() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const bid = user?.business_id;
   const qc = useQueryClient();
@@ -59,11 +62,10 @@ export default function StaffAppointmentsPage() {
   const isToday = selectedDate === todayStr;
   const isPastDay = selectedDate < todayStr;
 
-  // Geçmiş gün ise hepsi "past" grubunda; bugün/gelecek gün ise zaman bazlı ayır
   const upcoming = isPastDay ? [] : sorted.filter(a => !isArchived(a));
   const past = isPastDay ? sorted : sorted.filter(a => isArchived(a));
 
-  const displayDate = new Date(selectedDate + 'T12:00:00').toLocaleDateString('tr-TR', {
+  const displayDate = new Date(selectedDate + 'T12:00:00').toLocaleDateString(userLocale, {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });
 
@@ -87,13 +89,13 @@ export default function StaffAppointmentsPage() {
         </div>
       ) : sorted.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-          <p className="text-gray-400 text-sm">Bu gün için randevu yok.</p>
+          <p className="text-gray-400 text-sm">{t('appointments.noAppointments')}</p>
         </div>
       ) : (
         <div className="space-y-3">
           {upcoming.length === 0 && !isPastDay && (
             <div className="text-center py-8 bg-white rounded-xl border border-gray-200">
-              <p className="text-gray-400 text-sm">Kalan randevu yok.</p>
+              <p className="text-gray-400 text-sm">{t('appointments.noUpcoming')}</p>
             </div>
           )}
 
@@ -108,7 +110,9 @@ export default function StaffAppointmentsPage() {
               <button onClick={() => setShowPast(v => !v)}
                 className="flex items-center gap-2 text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors mb-3">
                 <ChevronDown className={`w-4 h-4 transition-transform ${showPast ? 'rotate-180' : ''}`} />
-                {isPastDay ? `Tüm randevular (${past.length})` : `Geçmiş randevular (${past.length})`}
+                {isPastDay
+                  ? t('appointments.allOf', { count: past.length })
+                  : t('appointments.past', { count: past.length })}
               </button>
               {showPast && (
                 <div className="space-y-3 opacity-60">

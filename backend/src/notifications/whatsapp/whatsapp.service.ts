@@ -111,10 +111,11 @@ export class WhatsappService {
   }
 
   private normalizePhone(phone: string): string {
-    const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+    // Numara DB'de E.164 formatında saklanıyor (+xxxxxxxxxxx).
+    // WhatsApp API'si + olmadan ister: "905551234567"
+    const cleaned = phone.replace(/\s/g, '');
     if (cleaned.startsWith('+')) return cleaned.slice(1);
-    if (cleaned.startsWith('0')) return `90${cleaned.slice(1)}`;
-    if (cleaned.startsWith('90')) return cleaned;
-    return `90${cleaned}`;
+    // Eski kayıtlar için fallback (+ yoksa dokunmadan gönder)
+    return cleaned;
   }
 }

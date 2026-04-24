@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 
 interface Ticket {
@@ -13,11 +14,6 @@ interface Ticket {
   updated_at: string;
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  open:        'Açık',
-  in_progress: 'İşlemde',
-  closed:      'Kapatıldı',
-};
 const STATUS_COLORS: Record<string, string> = {
   open:        'bg-yellow-100 text-yellow-700',
   in_progress: 'bg-blue-100 text-blue-700',
@@ -25,6 +21,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function TicketsPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -57,10 +54,10 @@ export default function TicketsPage() {
   const tickets: Ticket[] = data?.data ?? [];
   const meta = data?.meta;
 
+  const statusLabel = (status: string) => t(`superadmin.tickets.statuses.${status}`, { defaultValue: status });
+
   return (
     <div>
-      
-
       {/* Filter */}
       <div className="flex gap-3 mb-6">
         <select
@@ -68,10 +65,10 @@ export default function TicketsPage() {
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          <option value="">Tüm Durumlar</option>
-          <option value="open">Açık</option>
-          <option value="in_progress">İşlemde</option>
-          <option value="closed">Kapatıldı</option>
+          <option value="">{t('superadmin.tickets.allStatuses')}</option>
+          <option value="open">{t('superadmin.tickets.statuses.open')}</option>
+          <option value="in_progress">{t('superadmin.tickets.statuses.in_progress')}</option>
+          <option value="closed">{t('superadmin.tickets.statuses.closed')}</option>
         </select>
       </div>
 
@@ -82,40 +79,40 @@ export default function TicketsPage() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" />
           </div>
         ) : tickets.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">Destek talebi bulunamadı.</div>
+          <div className="text-center py-16 text-gray-400">{t('superadmin.tickets.notFound')}</div>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Konu</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Durum</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Tarih</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">İşlem</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">{t('superadmin.tickets.subjectCol')}</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">{t('superadmin.tickets.statusCol')}</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">{t('superadmin.tickets.dateCol')}</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600">{t('superadmin.tickets.actionCol')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {tickets.map(t => (
-                <tr key={t.id} className="hover:bg-gray-50">
+              {tickets.map(tk => (
+                <tr key={tk.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-gray-900">{t.subject || '(Konu yok)'}</p>
-                    {t.message && (
-                      <p className="text-xs text-gray-400 truncate max-w-xs">{t.message}</p>
+                    <p className="font-medium text-gray-900">{tk.subject || `(${t('superadmin.tickets.subjectCol')})`}</p>
+                    {tk.message && (
+                      <p className="text-xs text-gray-400 truncate max-w-xs">{tk.message}</p>
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[t.status]}`}>
-                      {STATUS_LABELS[t.status]}
+                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[tk.status]}`}>
+                      {statusLabel(tk.status)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-gray-400 text-xs">
-                    {new Date(t.created_at).toLocaleDateString('tr-TR')}
+                    {new Date(tk.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <button
-                      onClick={() => openDetail(t)}
+                      onClick={() => openDetail(tk)}
                       className="text-xs text-indigo-600 hover:text-indigo-800 px-3 py-1.5 border border-indigo-200 rounded-lg"
                     >
-                      İncele
+                      {t('superadmin.tickets.review')}
                     </button>
                   </td>
                 </tr>
@@ -126,14 +123,14 @@ export default function TicketsPage() {
 
         {meta && meta.total_pages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
-            <p className="text-sm text-gray-500">{meta.total} talep</p>
+            <p className="text-sm text-gray-500">{t('superadmin.tickets.ticketCount', { count: meta.total })}</p>
             <div className="flex gap-2">
               <button
                 disabled={page <= 1}
                 onClick={() => setPage(p => p - 1)}
                 className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40"
               >
-                ← Önceki
+                {t('common.prevPage')}
               </button>
               <span className="px-3 py-1 text-sm text-gray-600">{page} / {meta.total_pages}</span>
               <button
@@ -141,7 +138,7 @@ export default function TicketsPage() {
                 onClick={() => setPage(p => p + 1)}
                 className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40"
               >
-                Sonraki →
+                {t('common.nextPage')}
               </button>
             </div>
           </div>
@@ -153,40 +150,40 @@ export default function TicketsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-900">Destek Talebi</h3>
+              <h3 className="font-semibold text-gray-900">{t('superadmin.tickets.detail')}</h3>
               <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
             </div>
             <div className="px-6 py-4 space-y-4">
               <div>
-                <p className="text-xs text-gray-400 mb-1">Konu</p>
-                <p className="font-medium text-gray-900">{selected.subject || '(Konu yok)'}</p>
+                <p className="text-xs text-gray-400 mb-1">{t('superadmin.tickets.subjectCol')}</p>
+                <p className="font-medium text-gray-900">{selected.subject || `(${t('superadmin.tickets.subjectCol')})`}</p>
               </div>
               {selected.message && (
                 <div>
-                  <p className="text-xs text-gray-400 mb-1">Mesaj</p>
+                  <p className="text-xs text-gray-400 mb-1">{t('superadmin.tickets.message')}</p>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg p-3">{selected.message}</p>
                 </div>
               )}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Durum</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('superadmin.tickets.statusCol')}</label>
                 <select
                   value={newStatus}
                   onChange={e => setNewStatus(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="open">Açık</option>
-                  <option value="in_progress">İşlemde</option>
-                  <option value="closed">Kapatıldı</option>
+                  <option value="open">{t('superadmin.tickets.statuses.open')}</option>
+                  <option value="in_progress">{t('superadmin.tickets.statuses.in_progress')}</option>
+                  <option value="closed">{t('superadmin.tickets.statuses.closed')}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Admin Notu</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('superadmin.tickets.adminNote')}</label>
                 <textarea
                   value={note}
                   onChange={e => setNote(e.target.value)}
                   rows={3}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                  placeholder="İç not ekleyin..."
+                  placeholder={t('superadmin.tickets.notePlaceholder')}
                 />
               </div>
               <div className="flex gap-3">
@@ -194,14 +191,14 @@ export default function TicketsPage() {
                   onClick={() => setSelected(null)}
                   className="flex-1 border border-gray-300 text-gray-700 text-sm font-medium py-2.5 rounded-lg hover:bg-gray-50"
                 >
-                  İptal
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={() => updateTicket.mutate({ id: selected.id, status: newStatus, admin_note: note })}
                   disabled={updateTicket.isPending}
                   className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium py-2.5 rounded-lg"
                 >
-                  {updateTicket.isPending ? 'Kaydediliyor...' : 'Kaydet'}
+                  {updateTicket.isPending ? t('common.saving') : t('superadmin.tickets.saveNote')}
                 </button>
               </div>
             </div>

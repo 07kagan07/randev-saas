@@ -1,8 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DayPicker } from 'react-day-picker';
 import { format, parse, isValid } from 'date-fns';
-import { tr } from 'date-fns/locale';
+import { tr, enUS, de, ru } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const LOCALE_MAP: Record<string, Locale> = { tr, en: enUS, de, ru };
 
 interface DatePickerProps {
   value: string;          // "YYYY-MM-DD"
@@ -12,7 +15,9 @@ interface DatePickerProps {
   className?: string;
 }
 
-export default function DatePicker({ value, onChange, min, placeholder = 'Tarih seçin', className }: DatePickerProps) {
+export default function DatePicker({ value, onChange, min, placeholder, className }: DatePickerProps) {
+  const { t, i18n } = useTranslation();
+  const locale = LOCALE_MAP[i18n.language] ?? enUS;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -29,7 +34,7 @@ export default function DatePicker({ value, onChange, min, placeholder = 'Tarih 
   const disabled  = min  ? { before: parse(min, 'yyyy-MM-dd', new Date()) } : undefined;
 
   const displayValue = selected && isValid(selected)
-    ? format(selected, 'd MMMM yyyy', { locale: tr })
+    ? format(selected, 'd MMMM yyyy', { locale })
     : '';
 
   return (
@@ -48,7 +53,7 @@ export default function DatePicker({ value, onChange, min, placeholder = 'Tarih 
           <Calendar className="w-4 h-4" />
         </div>
         <span className={`flex-1 text-left ${displayValue ? 'text-gray-800' : 'text-gray-400'}`}>
-          {displayValue || placeholder}
+          {displayValue || placeholder || t('common.selectDate')}
         </span>
         {value && (
           <button
@@ -71,7 +76,7 @@ export default function DatePicker({ value, onChange, min, placeholder = 'Tarih 
               onChange(day ? format(day, 'yyyy-MM-dd') : '');
               setOpen(false);
             }}
-            locale={tr}
+            locale={locale}
             disabled={disabled}
             showOutsideDays
             classNames={{

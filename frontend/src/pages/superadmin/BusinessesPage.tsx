@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 
 interface Business {
@@ -14,7 +15,6 @@ interface Business {
   created_at: string;
 }
 
-const PLAN_LABELS = { free: 'Free', pro: 'Pro', business: 'Business' };
 const PLAN_COLORS: Record<string, string> = {
   free:     'bg-gray-100 text-gray-700 border-gray-200',
   pro:      'bg-indigo-100 text-indigo-700 border-indigo-200',
@@ -25,6 +25,7 @@ type CreateForm = { business_name: string; owner_name: string; owner_phone: stri
 const emptyCreate: CreateForm = { business_name: '', owner_name: '', owner_phone: '', slug: '' };
 
 export default function BusinessesPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [planFilter, setPlanFilter] = useState('');
@@ -52,11 +53,6 @@ export default function BusinessesPage() {
     },
   });
 
-  const blockUser = useMutation({
-    mutationFn: (id: string) => api.post(`/admin/users/${id}/block`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['businesses'] }),
-  });
-
   const createBusiness = useMutation({
     mutationFn: (form: CreateForm) => api.post('/auth/register', {
       business_name: form.business_name,
@@ -72,7 +68,7 @@ export default function BusinessesPage() {
       setCreateError('');
     },
     onError: (err: any) => {
-      setCreateError(err?.response?.data?.message || 'İşletme oluşturulamadı.');
+      setCreateError(err?.response?.data?.message || t('superadmin.businesses.createError'));
     },
   });
 
@@ -82,12 +78,11 @@ export default function BusinessesPage() {
   return (
     <div>
       <div className="flex items-center justify-end mb-6">
-
         <button
           onClick={() => { setCreateOpen(true); setCreateForm(emptyCreate); setCreateError(''); }}
           className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg"
         >
-          + İşletme Ekle
+          + {t('superadmin.businesses.createBusiness')}
         </button>
       </div>
 
@@ -95,7 +90,7 @@ export default function BusinessesPage() {
       <div className="flex flex-wrap gap-3 mb-6">
         <input
           type="text"
-          placeholder="İşletme adı ara..."
+          placeholder={t('superadmin.businesses.searchPlaceholder')}
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1); }}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -105,10 +100,10 @@ export default function BusinessesPage() {
           onChange={e => { setPlanFilter(e.target.value); setPage(1); }}
           className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
-          <option value="">Tüm Planlar</option>
-          <option value="free">Free</option>
-          <option value="pro">Pro</option>
-          <option value="business">Business</option>
+          <option value="">{t('superadmin.businesses.allPlans')}</option>
+          <option value="free">{t('plan.free')}</option>
+          <option value="pro">{t('plan.pro')}</option>
+          <option value="business">{t('plan.business')}</option>
         </select>
       </div>
 
@@ -119,18 +114,18 @@ export default function BusinessesPage() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" />
           </div>
         ) : businesses.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">İşletme bulunamadı.</div>
+          <div className="text-center py-16 text-gray-400">{t('superadmin.businesses.notFound')}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">İşletme</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">{t('superadmin.businesses.colName')}</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Slug</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Plan</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Durum</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Kayıt</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-600">İşlemler</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">{t('superadmin.businesses.colPlan')}</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">{t('superadmin.businesses.colStatus')}</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">{t('superadmin.businesses.colRegistered')}</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">{t('superadmin.businesses.colActions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -149,35 +144,35 @@ export default function BusinessesPage() {
                             onChange={e => setNewPlan(e.target.value)}
                             className="border border-gray-300 rounded px-2 py-1 text-xs"
                           >
-                            <option value="free">Free</option>
-                            <option value="pro">Pro</option>
-                            <option value="business">Business</option>
+                            <option value="free">{t('plan.free')}</option>
+                            <option value="pro">{t('plan.pro')}</option>
+                            <option value="business">{t('plan.business')}</option>
                           </select>
                           <button
                             onClick={() => updatePlan.mutate({ id: b.id, plan: newPlan })}
                             disabled={updatePlan.isPending}
                             className="text-xs bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700"
                           >
-                            Kaydet
+                            {t('common.save')}
                           </button>
-                          <button onClick={() => setEditingPlan(null)} className="text-xs text-gray-400 hover:text-gray-600">İptal</button>
+                          <button onClick={() => setEditingPlan(null)} className="text-xs text-gray-400 hover:text-gray-600">{t('common.cancel')}</button>
                         </div>
                       ) : (
                         <span
                           onClick={() => { setEditingPlan({ id: b.id, current: b.subscription_plan }); setNewPlan(b.subscription_plan); }}
                           className={`cursor-pointer inline-flex px-2 py-1 rounded-md border text-xs font-medium ${PLAN_COLORS[b.subscription_plan]}`}
                         >
-                          {PLAN_LABELS[b.subscription_plan]}
+                          {t(`plan.${b.subscription_plan}`, { defaultValue: b.subscription_plan })}
                         </span>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${b.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {b.is_active ? 'Aktif' : 'Pasif'}
+                        {b.is_active ? t('common.active') : t('common.passive')}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-400 text-xs">
-                      {new Date(b.created_at).toLocaleDateString('tr-TR')}
+                      {new Date(b.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <a
@@ -186,7 +181,7 @@ export default function BusinessesPage() {
                         rel="noreferrer"
                         className="text-indigo-600 hover:text-indigo-800 text-xs mr-3"
                       >
-                        Vitrin
+                        {t('superadmin.businesses.storefront')}
                       </a>
                     </td>
                   </tr>
@@ -199,14 +194,14 @@ export default function BusinessesPage() {
         {/* Pagination */}
         {meta && meta.total_pages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
-            <p className="text-sm text-gray-500">{meta.total} işletme</p>
+            <p className="text-sm text-gray-500">{t('superadmin.businesses.businessCount', { count: meta.total })}</p>
             <div className="flex gap-2">
               <button
                 disabled={page <= 1}
                 onClick={() => setPage(p => p - 1)}
                 className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40"
               >
-                ← Önceki
+                {t('common.prevPage')}
               </button>
               <span className="px-3 py-1 text-sm text-gray-600">{page} / {meta.total_pages}</span>
               <button
@@ -214,41 +209,42 @@ export default function BusinessesPage() {
                 onClick={() => setPage(p => p + 1)}
                 className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-40"
               >
-                Sonraki →
+                {t('common.nextPage')}
               </button>
             </div>
           </div>
         )}
       </div>
+
       {/* Create Business Modal */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="font-semibold text-gray-900">İşletme Oluştur</h3>
+              <h3 className="font-semibold text-gray-900">{t('superadmin.businesses.createBusiness')}</h3>
               <button onClick={() => setCreateOpen(false)} className="text-gray-400 hover:text-gray-600 text-xl">×</button>
             </div>
             <div className="px-6 py-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">İşletme Adı *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('superadmin.businesses.businessNameLabel')}</label>
                 <input
                   value={createForm.business_name}
                   onChange={e => setCreateForm(f => ({ ...f, business_name: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Örnek Kuaför"
+                  placeholder={t('superadmin.businesses.businessNamePlaceholder')}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sahip Adı</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('superadmin.businesses.ownerNameLabel')}</label>
                 <input
                   value={createForm.owner_name}
                   onChange={e => setCreateForm(f => ({ ...f, owner_name: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Ahmet Yılmaz"
+                  placeholder={t('superadmin.businesses.adminNamePlaceholder')}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Telefon *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('superadmin.businesses.phoneLabel')}</label>
                 <input
                   value={createForm.owner_phone}
                   onChange={e => setCreateForm(f => ({ ...f, owner_phone: e.target.value }))}
@@ -257,14 +253,14 @@ export default function BusinessesPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Slug (opsiyonel)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('superadmin.businesses.slugLabel')}</label>
                 <input
                   value={createForm.slug}
                   onChange={e => setCreateForm(f => ({ ...f, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="ornek-kuafor"
                 />
-                <p className="text-xs text-gray-400 mt-1">Boş bırakılırsa işletme adından otomatik oluşturulur.</p>
+                <p className="text-xs text-gray-400 mt-1">{t('superadmin.businesses.slugHint')}</p>
               </div>
               {createError && <p className="text-sm text-red-600">{createError}</p>}
               <button
@@ -272,7 +268,7 @@ export default function BusinessesPage() {
                 disabled={createBusiness.isPending || !createForm.business_name || !createForm.owner_phone}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium py-2.5 rounded-lg"
               >
-                {createBusiness.isPending ? 'Oluşturuluyor...' : 'İşletme Oluştur'}
+                {createBusiness.isPending ? t('superadmin.businesses.creating') : t('superadmin.businesses.createBusiness')}
               </button>
             </div>
           </div>

@@ -54,12 +54,12 @@ export class BusinessesController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.BUSINESS_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.BUSINESS_ADMIN, UserRole.STAFF)
   findOne(
     @Param('id') id: string,
     @CurrentUser() user: User,
   ) {
-    const targetId = user.role === UserRole.BUSINESS_ADMIN ? user.business_id! : id;
+    const targetId = (user.role === UserRole.BUSINESS_ADMIN || user.role === UserRole.STAFF) ? user.business_id! : id;
     return this.businessesService.findOne(targetId);
   }
 
@@ -86,14 +86,14 @@ export class BusinessesController {
   // QR kod indir
   @Get(':id/qr')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.BUSINESS_ADMIN, UserRole.SUPER_ADMIN)
+  @Roles(UserRole.BUSINESS_ADMIN, UserRole.SUPER_ADMIN, UserRole.STAFF)
   async getQr(
     @Param('id') id: string,
     @Query('format') format: 'png' | 'svg' = 'png',
     @Res() res: Response,
     @CurrentUser() user: User,
   ) {
-    const targetId = user.role === UserRole.BUSINESS_ADMIN ? user.business_id! : id;
+    const targetId = (user.role === UserRole.BUSINESS_ADMIN || user.role === UserRole.STAFF) ? user.business_id! : id;
     const result = await this.businessesService.generateQr(targetId, format);
 
     if (format === 'svg') {

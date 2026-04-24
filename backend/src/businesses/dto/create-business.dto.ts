@@ -36,6 +36,17 @@ export class CreateBusinessDto {
   timezone?: string;
 
   @IsOptional()
+  @IsString()
+  @Length(2, 2)
+  @Matches(/^[A-Z]{2}$/, { message: 'ISO 3166-1 alpha-2 ülke kodu gerekli (örn. TR, US).' })
+  country?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  city?: string;
+
+  @IsOptional()
   @IsEnum(ApprovalMode)
   approval_mode?: ApprovalMode;
 }

@@ -79,6 +79,12 @@ export class AppointmentsController {
     return this.appointmentsService.cancelByStaff(user, id);
   }
 
+  // Public — token ile randevu bilgisi getir
+  @Get('action')
+  getByToken(@Query('token') token: string) {
+    return this.appointmentsService.getByToken(token);
+  }
+
   // Public — token ile iptal/ertele
   @Post('action')
   @HttpCode(HttpStatus.OK)

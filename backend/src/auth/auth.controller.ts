@@ -27,7 +27,7 @@ export class AuthController {
   @Post('send-otp')
   @HttpCode(HttpStatus.OK)
   sendOtp(@Body() dto: SendOtpDto) {
-    return this.authService.sendOtp(dto.phone);
+    return this.authService.sendOtp(dto.phone, dto.mode ?? 'login');
   }
 
   @Throttle({ default: { limit: 10, ttl: 60000 } })

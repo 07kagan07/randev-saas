@@ -129,10 +129,14 @@ export class SmsService {
   }
 
   private normalizePhone(phone: string): string {
-    // İletimerkezi formatı: 5xxxxxxxxx (10 hane, başında 0 veya +90 olmadan)
+    // DB'de E.164 formatı: +905551234567
+    // İletimerkezi sadece Türkiye numaralarını kabul eder → 5xxxxxxxxx (10 hane)
     const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.startsWith('90')) return cleaned.slice(2);
-    if (cleaned.startsWith('0')) return cleaned.slice(1);
-    return cleaned;
+    if (cleaned.startsWith('90') && cleaned.length === 12) return cleaned.slice(2);
+    if (cleaned.startsWith('0')  && cleaned.length === 11)  return cleaned.slice(1);
+    if (cleaned.length === 10)   return cleaned;
+    // Türkiye dışı numara → İletimerkezi bunu gönderemez; log yaz, devam et
+    this.logger.warn(`SMS: Türkiye dışı numara, gönderilemiyor: ${phone}`);
+    return cleaned; // Provider reject edecek, uygulama çökmeyecek
   }
 }

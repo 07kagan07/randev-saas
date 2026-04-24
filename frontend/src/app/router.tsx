@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useEffect } from 'react';
 import { createBrowserRouter, Navigate, Outlet, useRouteError } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../store/auth.store';
 import SuperAdminLayout from '../components/shared/SuperAdminLayout';
 import AdminLayout from '../components/shared/AdminLayout';
@@ -31,6 +32,7 @@ function isChunkError(err: any): boolean {
 
 // React Router'ın kendi error boundary'si chunk hatasını yakalarsa → otomatik reload
 function ErrorPage() {
+  const { t } = useTranslation();
   const error = useRouteError() as Error;
 
   useEffect(() => {
@@ -55,13 +57,13 @@ function ErrorPage() {
   // Diğer hatalar
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-4">
-      <p className="text-gray-700 font-medium">Bir hata oluştu.</p>
+      <p className="text-gray-700 font-medium">{t('common.errorOccurred')}</p>
       <p className="text-sm text-red-500">{error?.message}</p>
       <button
         onClick={() => { window.location.href = '/'; }}
         className="text-indigo-600 underline text-sm"
       >
-        Ana sayfaya dön
+        {t('common.goHome')}
       </button>
     </div>
   );
@@ -82,9 +84,9 @@ const AdminServices     = lazyLoad(() => import('../pages/admin/ServicesPage'));
 const AdminReports      = lazyLoad(() => import('../pages/admin/ReportsPage'));
 const AdminSettings     = lazyLoad(() => import('../pages/admin/SettingsPage'));
 
-const StaffDashboard    = lazyLoad(() => import('../pages/staff/DashboardPage'));
 const StaffAppointments = lazyLoad(() => import('../pages/staff/AppointmentsPage'));
 const StaffWorkingHours = lazyLoad(() => import('../pages/staff/WorkingHoursPage'));
+const StaffShare        = lazyLoad(() => import('../pages/staff/SharePage'));
 
 const SuperAdminDashboard     = lazyLoad(() => import('../pages/superadmin/DashboardPage'));
 const SuperAdminBusinesses    = lazyLoad(() => import('../pages/superadmin/BusinessesPage'));
@@ -169,9 +171,10 @@ export const router = createBrowserRouter([
           </RequireAuth>
         ),
         children: [
-          { index: true,           element: S(StaffDashboard)    },
+          { index: true,           element: <Navigate to="/staff/appointments" replace /> },
           { path: 'appointments',  element: S(StaffAppointments) },
           { path: 'hours',         element: S(StaffWorkingHours) },
+          { path: 'share',         element: S(StaffShare) },
         ],
       },
 

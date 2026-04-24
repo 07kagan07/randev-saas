@@ -77,6 +77,12 @@ export class Business {
   @Column({ length: 60, default: 'Europe/Istanbul' })
   timezone: string;
 
+  @Column({ type: 'varchar', length: 2, nullable: true })
+  country: string | null; // ISO 3166-1 alpha-2 (TR, US, DE …)
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  city: string | null;
+
   @Column({
     type: 'varchar',
     length: 20,

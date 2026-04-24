@@ -1,23 +1,25 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Calendar, Clock, LogOut, Menu } from 'lucide-react';
+import { Calendar, Clock, LogOut, Menu, Share2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/auth.store';
 
-const nav = [
-  { to: '/staff',              label: 'Dashboard',         icon: LayoutDashboard, end: true },
-  { to: '/staff/appointments', label: 'Randevular',        icon: Calendar },
-  { to: '/staff/hours',        label: 'Çalışma Saatlerim', icon: Clock },
-];
-
 export default function StaffLayout() {
+  const { t } = useTranslation();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const nav = [
+    { to: '/staff/appointments', label: t('nav.appointments'), icon: Calendar },
+    { to: '/staff/hours',        label: t('nav.mySchedule'),   icon: Clock },
+    { to: '/staff/share',        label: t('nav.shareStore'),   icon: Share2 },
+  ];
+
   const pageTitle = nav.find(item =>
-    item.end ? location.pathname === item.to : location.pathname.startsWith(item.to)
-  )?.label ?? 'Panel';
+    (item as any).end ? location.pathname === item.to : location.pathname.startsWith(item.to)
+  )?.label ?? t('nav.panel');
 
   const handleLogout = async () => {
     await logout();
@@ -35,8 +37,8 @@ export default function StaffLayout() {
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-sm font-bold">P</div>
             <div>
-              <p className="font-semibold text-sm truncate">{user?.full_name || 'Personel'}</p>
-              <p className="text-xs text-indigo-300">Personel Panel</p>
+              <p className="font-semibold text-sm truncate">{user?.full_name || t('nav.staffMode')}</p>
+              <p className="text-xs text-indigo-300">{t('nav.staffPanel')}</p>
             </div>
           </div>
         </div>
@@ -46,7 +48,7 @@ export default function StaffLayout() {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.end}
+              end={(item as any).end}
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
@@ -66,7 +68,7 @@ export default function StaffLayout() {
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-indigo-200 hover:bg-white/10 hover:text-white transition-colors"
           >
             <LogOut className="w-4 h-4 shrink-0" />
-            <span>Çıkış Yap</span>
+            <span>{t('auth.logout')}</span>
           </button>
         </div>
       </aside>

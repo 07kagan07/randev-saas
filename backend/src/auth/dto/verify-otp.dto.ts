@@ -2,8 +2,8 @@ import { IsString, Length, Matches } from 'class-validator';
 
 export class VerifyOtpDto {
   @IsString()
-  @Matches(/^\+?[0-9]{10,15}$/, {
-    message: 'Lütfen geçerli bir telefon numarası girin.',
+  @Matches(/^\+[1-9]\d{6,14}$/, {
+    message: 'Telefon numarası E.164 formatında olmalı (örn. +905551234567).',
   })
   phone: string;
 

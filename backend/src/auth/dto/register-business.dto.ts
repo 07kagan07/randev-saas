@@ -6,7 +6,7 @@ export class RegisterBusinessDto {
   full_name: string;
 
   @IsString()
-  @Matches(/^\+90\d{10}$/, { message: 'Telefon +90 ile başlamalı ve 10 haneli olmalıdır.' })
+  @Matches(/^\+[1-9]\d{6,14}$/, { message: 'Telefon numarası E.164 formatında olmalı (örn. +905551234567).' })
   phone: string;
 
   @IsString()

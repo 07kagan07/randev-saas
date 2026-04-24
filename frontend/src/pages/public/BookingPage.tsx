@@ -1,9 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { ChevronLeft, CheckCircle, Clock, Calendar, User, ClipboardList } from 'lucide-react';
 import api from '../../services/api';
 import { useBusinessSocket } from '../../hooks/useBusinessSocket';
+import PhoneInput from '../../components/shared/PhoneInput';
+import { DEFAULT_COUNTRY, COUNTRIES } from '../../data/countries';
+import { userLocale } from '../../utils/locale';
 
 function localDateStr(d: Date): string {
   const y = d.getFullYear();
@@ -12,10 +16,12 @@ function localDateStr(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-const TR_DAYS = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'];
-const TR_MONTHS = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-
 function WeekStrip({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation();
+  // JS getDay(): 0=Sun,1=Mon...6=Sat → map to short names
+  const DAY_KEYS_BY_JS = ['sunShort', 'monShort', 'tueShort', 'wedShort', 'thuShort', 'friShort', 'satShort'] as const;
+  const MONTH_KEYS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'] as const;
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const days = Array.from({ length: 14 }, (_, i) => {
@@ -37,13 +43,13 @@ function WeekStrip({ value, onChange }: { value: string; onChange: (v: string) =
                 : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300'
             }`}>
             <span className={`text-xs font-semibold uppercase tracking-wide ${isSelected ? 'text-indigo-200' : isToday ? 'text-indigo-500' : 'text-gray-400'}`}>
-              {TR_DAYS[d.getDay()]}
+              {t(`common.days.${DAY_KEYS_BY_JS[d.getDay()]}`)}
             </span>
             <span className={`text-2xl font-bold leading-tight ${isSelected ? 'text-white' : 'text-gray-900'}`}>
               {d.getDate()}
             </span>
             <span className={`text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-400'}`}>
-              {TR_MONTHS[d.getMonth()]}
+              {t(`common.months.${MONTH_KEYS[d.getMonth()]}`)}
             </span>
           </button>
         );
@@ -53,32 +59,16 @@ function WeekStrip({ value, onChange }: { value: string; onChange: (v: string) =
 }
 
 type Step = 'service' | 'staff' | 'slot' | 'form' | 'done';
-
-const STEP_META: { key: Step; label: string; icon: React.ReactNode }[] = [
-  { key: 'service', label: 'Hizmet',   icon: <ClipboardList className="w-3.5 h-3.5" /> },
-  { key: 'staff',   label: 'Personel', icon: <User className="w-3.5 h-3.5" /> },
-  { key: 'slot',    label: 'Tarih',    icon: <Calendar className="w-3.5 h-3.5" /> },
-  { key: 'form',    label: 'Bilgiler', icon: <Clock className="w-3.5 h-3.5" /> },
-];
-
 const STEP_ORDER: Step[] = ['service', 'staff', 'slot', 'form', 'done'];
 
-function groupByCategory(services: any[], categoryOrder: string[]): { category: string; items: any[] }[] {
-  const map = new Map<string, any[]>();
-  for (const s of services) {
-    const cat = s.category || 'Diğer';
-    if (!map.has(cat)) map.set(cat, []);
-    map.get(cat)!.push(s);
-  }
-  const ordered: { category: string; items: any[] }[] = [];
-  for (const cat of categoryOrder) {
-    if (map.has(cat)) { ordered.push({ category: cat, items: map.get(cat)! }); map.delete(cat); }
-  }
-  for (const [cat, items] of map) ordered.push({ category: cat, items });
-  return ordered;
-}
-
 function StepBar({ current }: { current: Step }) {
+  const { t } = useTranslation();
+  const STEP_META: { key: Step; label: string; icon: React.ReactNode }[] = [
+    { key: 'service', label: t('booking.steps.service'), icon: <ClipboardList className="w-3.5 h-3.5" /> },
+    { key: 'staff',   label: t('booking.steps.staff'),   icon: <User className="w-3.5 h-3.5" /> },
+    { key: 'slot',    label: t('booking.steps.date'),    icon: <Calendar className="w-3.5 h-3.5" /> },
+    { key: 'form',    label: t('booking.steps.info'),    icon: <Clock className="w-3.5 h-3.5" /> },
+  ];
   const currentIdx = STEP_ORDER.indexOf(current);
   return (
     <div className="flex items-center gap-1 mb-8">
@@ -105,7 +95,23 @@ function StepBar({ current }: { current: Step }) {
   );
 }
 
+function groupByCategory(services: any[], categoryOrder: string[], other: string): { category: string; items: any[] }[] {
+  const map = new Map<string, any[]>();
+  for (const s of services) {
+    const cat = s.category || other;
+    if (!map.has(cat)) map.set(cat, []);
+    map.get(cat)!.push(s);
+  }
+  const ordered: { category: string; items: any[] }[] = [];
+  for (const cat of categoryOrder) {
+    if (map.has(cat)) { ordered.push({ category: cat, items: map.get(cat)! }); map.delete(cat); }
+  }
+  for (const [cat, items] of map) ordered.push({ category: cat, items });
+  return ordered;
+}
+
 export default function BookingPage() {
+  const { t } = useTranslation();
   const { slug } = useParams<{ slug: string }>();
 
   const [step, setStep] = useState<Step>('service');
@@ -114,7 +120,7 @@ export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState(() => localDateStr(new Date()));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [lockedSlots, setLockedSlots] = useState<Set<string>>(new Set());
-  const [form, setForm] = useState({ customer_name: '', customer_phone: '' });
+  const [form, setForm] = useState({ customer_name: '', customer_phone: DEFAULT_COUNTRY.dialCode });
   const [extraFields, setExtraFields] = useState<Record<string, string>>({});
   const [createdAppt, setCreatedAppt] = useState<any>(null);
 
@@ -126,7 +132,15 @@ export default function BookingPage() {
 
   const biz = bizData?.data;
 
-  // Socket — isolate per business room
+  const bizCountryApplied = React.useRef(false);
+  React.useEffect(() => {
+    if (biz?.country && !bizCountryApplied.current) {
+      bizCountryApplied.current = true;
+      const found = COUNTRIES.find(c => c.code === biz.country);
+      if (found) setForm(f => ({ ...f, customer_phone: found.dialCode }));
+    }
+  }, [biz?.country]);
+
   const { lockSlot, unlockSlot } = useBusinessSocket(biz?.id, {
     onSlotLocked: useCallback((e) => {
       setLockedSlots(prev => {
@@ -134,7 +148,6 @@ export default function BookingPage() {
         next.add(e.slotUtc);
         return next;
       });
-      // Eğer müşteri bu slotu seçmişse temizle
       setSelectedSlot(prev => prev === e.slotUtc ? null : prev);
     }, []),
     onSlotUnlocked: useCallback((e) => {
@@ -186,7 +199,7 @@ export default function BookingPage() {
       staff_id: selectedStaff?.id,
       start_at: selectedSlot,
       customer_name: form.customer_name,
-      customer_phone: `+90${form.customer_phone.replace(/\D/g, '')}`,
+      customer_phone: form.customer_phone,
       extra_fields: extraFields,
     }),
     onSuccess: (res) => {
@@ -197,7 +210,7 @@ export default function BookingPage() {
 
   const services: any[] = (servicesData?.data ?? []).filter((s: any) => s.is_active);
   const categoryOrder: string[] = biz?.category_order ?? [];
-  const serviceGroups = groupByCategory(services, categoryOrder);
+  const serviceGroups = groupByCategory(services, categoryOrder, t('booking.other'));
 
   const staffList: any[] = selectedService?.staff_services?.length > 0
     ? selectedService.staff_services.map((ss: any) => ss.staff).filter((s: any) => s.is_active)
@@ -207,6 +220,9 @@ export default function BookingPage() {
     slotsData?.data?.slots ?? [];
 
   const isManualApproval = biz?.approval_mode === 'manual_approve';
+
+  const fmtSlot = (utc: string) =>
+    new Date(utc).toLocaleString(userLocale, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
   if (!biz && !bizData) {
     return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500" /></div>;
@@ -233,14 +249,14 @@ export default function BookingPage() {
       <div className="max-w-lg mx-auto px-4 py-6">
         {step !== 'done' && <StepBar current={step} />}
 
-        {/* ── Hizmet ── */}
+        {/* ── Service ── */}
         {step === 'service' && (
           <div>
-            <h2 className="font-semibold text-gray-900 mb-4">Hizmet Seçin</h2>
+            <h2 className="font-semibold text-gray-900 mb-4">{t('booking.selectService')}</h2>
             {servicesLoading ? (
               <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" /></div>
             ) : services.length === 0 ? (
-              <p className="text-center text-gray-400 text-sm py-8">Henüz hizmet tanımlanmamış.</p>
+              <p className="text-center text-gray-400 text-sm py-8">{t('booking.noServicesYet')}</p>
             ) : (
               <div className="space-y-5">
                 {serviceGroups.map(({ category, items }) => (
@@ -253,11 +269,11 @@ export default function BookingPage() {
                           className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-indigo-50 transition-colors">
                           <div>
                             <p className="font-medium text-gray-900 text-sm">{s.name}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">{s.duration_minutes} dk</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{s.duration_minutes} {t('common.minutes')}</p>
                           </div>
                           {s.show_price && s.price != null && (
                             <p className="text-sm font-semibold text-indigo-600 shrink-0 ml-4">
-                              {Number(s.price).toLocaleString('tr-TR')} ₺
+                              {Number(s.price).toLocaleString()} ₺
                             </p>
                           )}
                         </button>
@@ -270,19 +286,19 @@ export default function BookingPage() {
           </div>
         )}
 
-        {/* ── Personel ── */}
+        {/* ── Staff ── */}
         {step === 'staff' && (
           <div>
-            <h2 className="font-semibold text-gray-900 mb-1">Personel Seçin</h2>
-            <p className="text-xs text-gray-400 mb-4">Fark etmez seçeneğiyle uygun personel otomatik atanır.</p>
+            <h2 className="font-semibold text-gray-900 mb-1">{t('booking.selectStaff')}</h2>
+            <p className="text-xs text-gray-400 mb-4">{t('booking.anyStaffHint')}</p>
             {staffLoading && !(selectedService?.staff_services?.length > 0) ? (
               <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" /></div>
             ) : (
               <div className="space-y-3">
                 <button onClick={() => { setSelectedStaff(null); setStep('slot'); }}
                   className="w-full bg-white rounded-xl border-2 border-gray-200 hover:border-indigo-400 px-4 py-3 text-left transition-colors">
-                  <p className="font-medium text-gray-700 text-sm">Fark etmez</p>
-                  <p className="text-xs text-gray-400">Müsait personel otomatik seçilir</p>
+                  <p className="font-medium text-gray-700 text-sm">{t('booking.anyStaff')}</p>
+                  <p className="text-xs text-gray-400">{t('booking.anyStaffDesc')}</p>
                 </button>
                 {staffList.map(s => (
                   <button key={s.id} onClick={() => { setSelectedStaff(s); setStep('slot'); }}
@@ -300,10 +316,10 @@ export default function BookingPage() {
           </div>
         )}
 
-        {/* ── Tarih & Slot ── */}
+        {/* ── Date & Slot ── */}
         {step === 'slot' && (
           <div>
-            <h2 className="font-semibold text-gray-900 mb-4">Tarih & Saat Seçin</h2>
+            <h2 className="font-semibold text-gray-900 mb-4">{t('booking.selectDateTime')}</h2>
             <div className="mb-5">
               <WeekStrip value={selectedDate} onChange={v => {
                 if (selectedSlot) unlockSlot(selectedSlot, selectedService?.id);
@@ -317,22 +333,24 @@ export default function BookingPage() {
             ) : slots.length === 0 ? (
               <div className="text-center py-8">
                 <Calendar className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-                <p className="text-gray-400 text-sm font-medium">Bu tarihte müsait saat yok.</p>
-                <p className="text-gray-300 text-xs mt-1">Başka bir tarih deneyin.</p>
+                <p className="text-gray-400 text-sm font-medium">{t('booking.noSlotsForDate')}</p>
+                <p className="text-gray-300 text-xs mt-1">{t('booking.tryOtherDate')}</p>
               </div>
             ) : (
               <>
-                <p className="text-xs text-gray-400 mb-2">{slots.filter(s => s.available).length} uygun saat</p>
+                <p className="text-xs text-gray-400 mb-2">{t('booking.availableSlots', { count: slots.filter(s => s.available).length })}</p>
                 <div className="grid grid-cols-4 gap-2">
-                  {slots.map(slot => {
-                    const isLocked = !slot.available || lockedSlots.has(slot.start_utc);
+                  {slots.map((slot: any) => {
+                    const isPast     = slot.reason === 'past';
+                    const isFull     = !slot.available && !isPast;
+                    const isRtLocked = lockedSlots.has(slot.start_utc);
+                    const isDisabled = !slot.available || isRtLocked;
                     const isSelected = selectedSlot === slot.start_utc;
                     return (
                       <button key={slot.start_utc}
-                        disabled={isLocked}
+                        disabled={isDisabled}
                         onClick={async () => {
-                          if (isLocked) return;
-                          // Önceki seçimi serbest bırak
+                          if (isDisabled) return;
                           if (selectedSlot && selectedSlot !== slot.start_utc) {
                             unlockSlot(selectedSlot, selectedService?.id);
                           }
@@ -340,14 +358,16 @@ export default function BookingPage() {
                           await lockSlot(slot.start_utc, selectedService?.id, selectedService?.duration_minutes);
                         }}
                         className={`py-2 rounded-xl text-sm font-medium border-2 transition-colors flex flex-col items-center leading-tight ${
-                          isLocked
+                          isPast
+                            ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
+                            : isFull || isRtLocked
                             ? 'bg-red-50 border-red-100 text-red-400 cursor-not-allowed'
                             : isSelected
                             ? 'bg-indigo-600 text-white border-indigo-600'
                             : 'bg-white text-gray-700 border-gray-200 hover:border-indigo-400'
                         }`}>
                         <span>{slot.start_local}</span>
-                        {isLocked && <span className="text-[10px] font-semibold">Dolu</span>}
+                        {(isFull || isRtLocked) && <span className="text-[10px] font-semibold">{t('booking.slotFull')}</span>}
                       </button>
                     );
                   })}
@@ -357,7 +377,7 @@ export default function BookingPage() {
             {selectedSlot && (
               <button onClick={() => setStep('form')}
                 className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-xl transition-colors">
-                Devam Et →
+                {t('booking.continueBtn')}
               </button>
             )}
           </div>
@@ -366,54 +386,51 @@ export default function BookingPage() {
         {/* ── Form ── */}
         {step === 'form' && (
           <div>
-            <h2 className="font-semibold text-gray-900 mb-4">Bilgileriniz</h2>
+            <h2 className="font-semibold text-gray-900 mb-4">{t('booking.yourDetails')}</h2>
 
-            {/* Özet kartı */}
+            {/* Summary card */}
             <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 mb-5 space-y-1.5 text-sm">
               <div className="flex justify-between">
-                <span className="text-indigo-400">Hizmet</span>
+                <span className="text-indigo-400">{t('booking.serviceLabel')}</span>
                 <span className="font-medium text-indigo-900">{selectedService?.name}</span>
               </div>
               {selectedStaff && (
                 <div className="flex justify-between">
-                  <span className="text-indigo-400">Personel</span>
+                  <span className="text-indigo-400">{t('booking.staffLabel')}</span>
                   <span className="font-medium text-indigo-900">{selectedStaff.full_name}</span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-indigo-400">Tarih & Saat</span>
+                <span className="text-indigo-400">{t('booking.dateTimeLabel')}</span>
                 <span className="font-medium text-indigo-900">
-                  {selectedSlot && new Date(selectedSlot).toLocaleString('tr-TR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                  {selectedSlot && fmtSlot(selectedSlot)}
                 </span>
               </div>
               {selectedService?.show_price && selectedService?.price && (
                 <div className="flex justify-between border-t border-indigo-100 pt-1.5 mt-1.5">
-                  <span className="text-indigo-400">Ücret</span>
-                  <span className="font-semibold text-indigo-700">{Number(selectedService.price).toLocaleString('tr-TR')} ₺</span>
+                  <span className="text-indigo-400">{t('booking.feeLabel')}</span>
+                  <span className="font-semibold text-indigo-700">{Number(selectedService.price).toLocaleString()} ₺</span>
                 </div>
               )}
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ad Soyad <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('booking.yourName')} <span className="text-red-500">*</span></label>
                 <input value={form.customer_name}
                   onChange={e => setForm(f => ({ ...f, customer_name: e.target.value }))}
                   className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Ahmet Yılmaz" />
+                  placeholder={t('booking.namePlaceholder')} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Telefon <span className="text-red-500">*</span></label>
-                <div className="flex rounded-xl border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
-                  <span className="inline-flex items-center px-3 bg-gray-50 text-gray-500 text-sm border-r border-gray-300">+90</span>
-                  <input value={form.customer_phone}
-                    onChange={e => setForm(f => ({ ...f, customer_phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
-                    className="flex-1 px-3 py-2.5 text-sm outline-none" placeholder="5xx xxx xxxx"
-                    inputMode="numeric" />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('booking.yourPhone')} <span className="text-red-500">*</span></label>
+                <PhoneInput
+                  value={form.customer_phone}
+                  onChange={v => setForm(f => ({ ...f, customer_phone: v }))}
+                />
               </div>
 
-              {/* İşletme tipine özel ek alanlar */}
+              {/* Business-type extra fields */}
               {bookingFormFields.map((field: any) => (
                 <div key={field.key}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -423,7 +440,7 @@ export default function BookingPage() {
                     <select value={extraFields[field.key] ?? ''}
                       onChange={e => setExtraFields(f => ({ ...f, [field.key]: e.target.value }))}
                       className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                      <option value="">Seçin...</option>
+                      <option value="">{t('booking.selectOption')}</option>
                       {(field.options ?? []).map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
                     </select>
                   ) : field.type === 'textarea' ? (
@@ -442,7 +459,7 @@ export default function BookingPage() {
 
               {isManualApproval && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700">
-                  Bu işletme randevuları manuel onaylıyor. Onay bildirimi SMS ile iletilecek.
+                  {t('booking.manualApprovalNote')}
                 </div>
               )}
 
@@ -450,20 +467,20 @@ export default function BookingPage() {
                 disabled={
                   createAppt.isPending ||
                   !form.customer_name.trim() ||
-                  form.customer_phone.length < 10 ||
+                  form.customer_phone.length < 8 ||
                   bookingFormFields.some((f: any) => f.required && !extraFields[f.key]?.trim())
                 }
                 className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-medium py-3 rounded-xl transition-colors">
-                {createAppt.isPending ? 'Randevu Alınıyor...' : 'Randevuyu Onayla'}
+                {createAppt.isPending ? t('booking.bookingButton') : t('booking.bookButton')}
               </button>
               {createAppt.isError && (
-                <p className="text-red-600 text-xs text-center">{(createAppt.error as any)?.response?.data?.message ?? 'Bir hata oluştu.'}</p>
+                <p className="text-red-600 text-xs text-center">{(createAppt.error as any)?.response?.data?.message ?? t('booking.errors.generic')}</p>
               )}
             </div>
           </div>
         )}
 
-        {/* ── Tamamlandı ── */}
+        {/* ── Done ── */}
         {step === 'done' && (
           <div className="text-center py-8">
             <div className={`w-20 h-20 rounded-full mx-auto mb-5 flex items-center justify-center ${isManualApproval ? 'bg-amber-100' : 'bg-green-100'}`}>
@@ -472,35 +489,35 @@ export default function BookingPage() {
 
             {isManualApproval ? (
               <>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Talebiniz Alındı!</h2>
-                <p className="text-gray-500 text-sm mb-1">Randevunuz işletme onayına gönderildi.</p>
-                <p className="text-gray-400 text-xs mb-6">Onaylandığında SMS ile bilgilendirileceksiniz.</p>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">{t('booking.requestReceivedTitle')}</h2>
+                <p className="text-gray-500 text-sm mb-1">{t('booking.pendingApprovalMsg')}</p>
+                <p className="text-gray-400 text-xs mb-6">{t('booking.willNotifySms')}</p>
               </>
             ) : (
               <>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Randevunuz Onaylandı!</h2>
-                <p className="text-gray-500 text-sm mb-1">Randevunuz başarıyla oluşturuldu.</p>
-                <p className="text-gray-400 text-xs mb-6">Randevunuzu iptal etmek için SMS'teki linki kullanabilirsiniz.</p>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">{t('booking.appointmentConfirmedTitle')}</h2>
+                <p className="text-gray-500 text-sm mb-1">{t('booking.appointmentCreatedMsg')}</p>
+                <p className="text-gray-400 text-xs mb-6">{t('booking.cancelViaSmsMsg')}</p>
               </>
             )}
 
-            {/* Özet */}
+            {/* Summary */}
             {createdAppt && (
               <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm text-left mb-6 space-y-1.5">
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Hizmet</span>
+                  <span className="text-gray-400">{t('booking.serviceLabel')}</span>
                   <span className="font-medium text-gray-800">{selectedService?.name}</span>
                 </div>
                 {selectedStaff && (
                   <div className="flex justify-between">
-                    <span className="text-gray-400">Personel</span>
+                    <span className="text-gray-400">{t('booking.staffLabel')}</span>
                     <span className="font-medium text-gray-800">{selectedStaff.full_name}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Tarih & Saat</span>
+                  <span className="text-gray-400">{t('booking.dateTimeLabel')}</span>
                   <span className="font-medium text-gray-800">
-                    {selectedSlot && new Date(selectedSlot).toLocaleString('tr-TR', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                    {selectedSlot && fmtSlot(selectedSlot)}
                   </span>
                 </div>
                 {bookingFormFields.filter((f: any) => extraFields[f.key]).map((f: any) => (
@@ -514,7 +531,7 @@ export default function BookingPage() {
 
             <Link to={`/${slug}`}
               className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-3 rounded-xl transition-colors">
-              Ana Sayfaya Dön
+              {t('booking.backToStore')}
             </Link>
           </div>
         )}

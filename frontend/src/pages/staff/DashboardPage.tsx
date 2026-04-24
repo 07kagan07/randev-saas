@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/auth.store';
 import ApptCard, { isArchived } from '../../components/shared/ApptCard';
 import { useBusinessSocket } from '../../hooks/useBusinessSocket';
 import api from '../../services/api';
 
 export default function StaffDashboardPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuthStore();
   const bid = user?.business_id;
   const qc = useQueryClient();
@@ -41,20 +43,20 @@ export default function StaffDashboardPage() {
   return (
     <div>
       <p className="text-sm text-gray-500 mb-4">
-        {new Date().toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        {new Date().toLocaleDateString(i18n.language, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
       </p>
 
       {isLoading ? (
         <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" /></div>
       ) : sorted.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-          <p className="text-gray-400 text-sm">Bugün randevu yok.</p>
+          <p className="text-gray-400 text-sm">{t('appointments.noAppointments')}</p>
         </div>
       ) : (
         <div className="space-y-3">
           {upcoming.length === 0 && (
             <div className="text-center py-8 bg-white rounded-xl border border-gray-200">
-              <p className="text-gray-400 text-sm">Kalan randevu yok.</p>
+              <p className="text-gray-400 text-sm">{t('appointments.noUpcoming')}</p>
             </div>
           )}
 
@@ -69,7 +71,7 @@ export default function StaffDashboardPage() {
               <button onClick={() => setShowPast(v => !v)}
                 className="flex items-center gap-2 text-xs font-medium text-gray-400 hover:text-gray-600 transition-colors mb-3">
                 <ChevronDown className={`w-4 h-4 transition-transform ${showPast ? 'rotate-180' : ''}`} />
-                Geçmiş randevular ({past.length})
+                {t('appointments.past', { count: past.length })}
               </button>
               {showPast && (
                 <div className="space-y-3 opacity-60">

@@ -1,19 +1,20 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { SearchX, MapPin, Phone, Clock, ChevronRight } from 'lucide-react';
 import api from '../../services/api';
 
-// 0=Pzt … 6=Paz — JS getDay(): 0=Pazar,1=Pzt…6=Cmt
+// 0=Mon … 6=Sun — JS getDay(): 0=Sun,1=Mon…6=Sat
 function todayDayOfWeek(): number {
   const js = new Date().getDay(); // 0=Sun
-  return js === 0 ? 6 : js - 1;  // → 0=Pzt…6=Paz
+  return js === 0 ? 6 : js - 1;  // → 0=Mon…6=Sun
 }
 
-function groupByCategory(services: any[], categoryOrder: string[]): { category: string; items: any[] }[] {
+function groupByCategory(services: any[], categoryOrder: string[], other: string): { category: string; items: any[] }[] {
   const map = new Map<string, any[]>();
   for (const s of services) {
-    const cat = s.category || 'Diğer';
+    const cat = s.category || other;
     if (!map.has(cat)) map.set(cat, []);
     map.get(cat)!.push(s);
   }
@@ -26,6 +27,7 @@ function groupByCategory(services: any[], categoryOrder: string[]): { category: 
 }
 
 export default function StorefrontPage() {
+  const { t } = useTranslation();
   const { slug } = useParams<{ slug: string }>();
 
   const { data: bizData, isLoading, isError } = useQuery({
@@ -42,7 +44,6 @@ export default function StorefrontPage() {
     enabled: !!biz?.id,
   });
 
-  // İşletme sahibinin çalışma saatlerini çek (bugün açık mı için)
   const { data: staffData } = useQuery({
     queryKey: ['storefront-staff', biz?.id],
     queryFn: () => api.get(`/businesses/${biz.id}/staff`).then(r => r.data),
@@ -59,9 +60,8 @@ export default function StorefrontPage() {
 
   const services: any[] = (servicesData?.data ?? []).filter((s: any) => s.is_active);
   const categoryOrder: string[] = biz?.category_order ?? [];
-  const groups = groupByCategory(services, categoryOrder);
+  const groups = groupByCategory(services, categoryOrder, t('booking.other'));
 
-  // Bugünün çalışma saati
   const todayHour = (ownerHoursData?.data ?? []).find((h: any) => h.day_of_week === todayDayOfWeek());
   const isOpenToday = todayHour?.is_open;
   const todayHours = isOpenToday ? `${todayHour.start_time?.slice(0, 5)} – ${todayHour.end_time?.slice(0, 5)}` : null;
@@ -79,8 +79,8 @@ export default function StorefrontPage() {
       <div className="min-h-screen flex items-center justify-center text-center px-4">
         <div>
           <SearchX className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          <p className="text-gray-700 font-medium">İşletme bulunamadı.</p>
-          <p className="text-gray-400 text-sm mt-1">Bu adres geçersiz veya işletme kaldırılmış olabilir.</p>
+          <p className="text-gray-700 font-medium">{t('storefront.notFound')}</p>
+          <p className="text-gray-400 text-sm mt-1">{t('storefront.notFoundDesc')}</p>
         </div>
       </div>
     );
@@ -113,7 +113,9 @@ export default function StorefrontPage() {
             {ownerHoursData && (
               <span className={`flex items-center gap-1 font-medium ${isOpenToday ? 'text-green-300' : 'text-red-300'}`}>
                 <Clock className="w-3 h-3" />
-                {isOpenToday ? `Bugün açık · ${todayHours}` : 'Bugün kapalı'}
+                {isOpenToday
+                  ? `${t('booking.openToday')}${todayHours}`
+                  : t('booking.closedToday')}
               </span>
             )}
           </div>
@@ -126,7 +128,7 @@ export default function StorefrontPage() {
           to={`/${slug}/book`}
           className="flex items-center justify-between w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 px-6 rounded-2xl shadow-md mb-8 transition-colors"
         >
-          <span className="text-lg">Randevu Al</span>
+          <span className="text-lg">{t('storefront.bookAppointment')}</span>
           <ChevronRight className="w-5 h-5" />
         </Link>
 
@@ -141,11 +143,11 @@ export default function StorefrontPage() {
                     <div key={s.id} className="px-4 py-3 flex items-center justify-between">
                       <div>
                         <p className="font-medium text-gray-900 text-sm">{s.name}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{s.duration_minutes} dk</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{s.duration_minutes} {t('common.minutes')}</p>
                       </div>
                       {s.show_price && s.price != null && (
                         <p className="text-sm font-semibold text-indigo-600 shrink-0 ml-4">
-                          {Number(s.price).toLocaleString('tr-TR')} ₺
+                          {Number(s.price).toLocaleString()} ₺
                         </p>
                       )}
                     </div>

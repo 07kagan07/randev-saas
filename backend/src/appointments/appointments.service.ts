@@ -352,6 +352,58 @@ export class AppointmentsService {
 
   // ─── Token ile İptal / Ertele (Guest) ─────────────────────────────────────
 
+  async getByToken(token: string): Promise<{
+    id: string;
+    customer_name: string;
+    start_at: Date;
+    end_at: Date;
+    status: string;
+    service_id: string;
+    service: { name: string; duration_minutes: number };
+    staff: { id: string; full_name: string | null };
+    business: { id: string; name: string; slug: string; timezone: string };
+    action_token_expires_at: Date | null;
+    action_token_used: boolean;
+  }> {
+    const appointment = await this.appointmentRepo.findOne({
+      where: { action_token: token as any },
+      relations: ['business', 'service', 'staff'],
+    });
+
+    if (!appointment) {
+      throw new BadRequestException({
+        code: 'TOKEN_INVALID',
+        message: 'Geçersiz veya kullanılmış bağlantı.',
+        message_en: 'Invalid or already used link.',
+      });
+    }
+
+    return {
+      id: appointment.id,
+      customer_name: appointment.customer_name,
+      start_at: appointment.start_at,
+      end_at: appointment.end_at,
+      status: appointment.status,
+      service_id: appointment.service_id,
+      service: {
+        name: appointment.service.name,
+        duration_minutes: appointment.service.duration_minutes,
+      },
+      staff: {
+        id: appointment.staff_id,
+        full_name: appointment.staff?.full_name ?? null,
+      },
+      business: {
+        id: appointment.business_id,
+        name: appointment.business.name,
+        slug: appointment.business.slug,
+        timezone: appointment.business.timezone,
+      },
+      action_token_expires_at: appointment.action_token_expires_at,
+      action_token_used: appointment.action_token_used,
+    };
+  }
+
   async handleAction(dto: AppointmentActionDto): Promise<{
     appointment_id: string;
     action: string;

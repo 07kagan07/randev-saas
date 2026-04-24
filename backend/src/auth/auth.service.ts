@@ -36,15 +36,34 @@ export class AuthService {
   ) {}
 
   // OTP Gönder
-  async sendOtp(phone: string): Promise<{ message: string }> {
+  async sendOtp(phone: string, mode: 'login' | 'register' = 'login'): Promise<{ message: string }> {
     const user = await this.userRepo.findOne({ where: { phone } });
 
-    if (user && !user.is_active) {
-      throw new ForbiddenException({
-        code: 'USER_BLOCKED',
-        message: 'Hesabınız engellenmiştir. Destek ekibiyle iletişime geçin.',
-        message_en: 'Your account has been blocked. Please contact support.',
-      });
+    if (mode === 'login') {
+      // Giriş: numara kayıtlı olmalı
+      if (!user) {
+        throw new BadRequestException({
+          code: 'USER_NOT_FOUND',
+          message: 'Bu telefon numarasına kayıtlı hesap bulunamadı.',
+          message_en: 'No account found for this phone number.',
+        });
+      }
+      if (!user.is_active) {
+        throw new ForbiddenException({
+          code: 'USER_BLOCKED',
+          message: 'Hesabınız engellenmiştir. Destek ekibiyle iletişime geçin.',
+          message_en: 'Your account has been blocked. Please contact support.',
+        });
+      }
+    } else {
+      // Kayıt: numara kayıtlı olmamalı
+      if (user) {
+        throw new BadRequestException({
+          code: 'PHONE_EXISTS',
+          message: 'Bu telefon numarasıyla zaten bir hesap mevcut.',
+          message_en: 'An account with this phone number already exists.',
+        });
+      }
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();

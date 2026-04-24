@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Plus, Pencil, Trash2, GripVertical, X, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../../services/api';
 
@@ -29,24 +30,25 @@ interface BusinessType {
   sort_order: number;
 }
 
-const FIELD_TYPES = [
-  { value: 'text', label: 'Metin' },
-  { value: 'tel', label: 'Telefon' },
-  { value: 'number', label: 'Sayı' },
-  { value: 'select', label: 'Seçim Listesi' },
-  { value: 'textarea', label: 'Uzun Metin' },
-];
-
 const emptyField = (): BookingFormField => ({ key: '', label: '', type: 'text', required: false, placeholder: '' });
 const emptyService = (): TemplateService => ({ name: '', duration_minutes: 30, price: 0, category: '' });
 const emptyType = (): Partial<BusinessType> => ({ name: '', icon: '', template_services: [], booking_form_fields: [], is_active: true, sort_order: 0 });
 
 export default function BusinessTypesPage() {
+  const { t } = useTranslation();
   const qc = useQueryClient();
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [editing, setEditing] = useState<BusinessType | null>(null);
   const [form, setForm] = useState<Partial<BusinessType>>(emptyType());
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const FIELD_TYPES = [
+    { value: 'text', label: t('superadmin.businessTypes.fieldTypes.text') },
+    { value: 'tel', label: t('superadmin.businessTypes.fieldTypes.phone') },
+    { value: 'number', label: t('superadmin.businessTypes.fieldTypes.number') },
+    { value: 'select', label: t('superadmin.businessTypes.fieldTypes.select') },
+    { value: 'textarea', label: t('superadmin.businessTypes.fieldTypes.textarea') },
+  ];
 
   const { data, isLoading } = useQuery({
     queryKey: ['business-types'],
@@ -56,12 +58,10 @@ export default function BusinessTypesPage() {
   const [localTypes, setLocalTypes] = useState<BusinessType[]>([]);
   const types: BusinessType[] = localTypes.length > 0 ? localTypes : (Array.isArray(data) ? data : []);
 
-  // Sunucudan gelen veriyi local state'e al (ilk yükleme ve yenileme)
   React.useEffect(() => {
     if (Array.isArray(data)) setLocalTypes(data);
   }, [data]);
 
-  // Drag state
   const dragIndex = useRef<number | null>(null);
   const dragOverIndex = useRef<number | null>(null);
 
@@ -84,9 +84,9 @@ export default function BusinessTypesPage() {
     const reordered = [...types];
     const [moved] = reordered.splice(from, 1);
     reordered.splice(to, 0, moved);
-    const updated = reordered.map((t, i) => ({ ...t, sort_order: i + 1 }));
+    const updated = reordered.map((bt, i) => ({ ...bt, sort_order: i + 1 }));
     setLocalTypes(updated);
-    reorderMut.mutate(updated.map(t => ({ id: t.id, sort_order: t.sort_order })));
+    reorderMut.mutate(updated.map(bt => ({ id: bt.id, sort_order: bt.sort_order })));
 
     dragIndex.current = null;
     dragOverIndex.current = null;
@@ -147,7 +147,7 @@ export default function BusinessTypesPage() {
     <div className="max-w-4xl space-y-4">
       <div className="flex justify-end">
         <button onClick={openCreate} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg">
-          <Plus className="w-4 h-4" /> Yeni Tip
+          <Plus className="w-4 h-4" /> {t('superadmin.businessTypes.newType')}
         </button>
       </div>
 
@@ -169,23 +169,25 @@ export default function BusinessTypesPage() {
                 <span className="text-xl">{bt.icon}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-900 text-sm">{bt.name}</p>
-                  <p className="text-xs text-gray-400">{bt.template_services.length} hizmet · {bt.booking_form_fields.length} ek alan</p>
+                  <p className="text-xs text-gray-400">
+                    {bt.template_services.length} {t('superadmin.businessTypes.serviceCountLabel')} · {bt.booking_form_fields.length} {t('superadmin.businessTypes.fieldCountLabel')}
+                  </p>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${bt.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {bt.is_active ? 'Aktif' : 'Pasif'}
+                  {bt.is_active ? t('common.active') : t('common.passive')}
                 </span>
                 <button onClick={() => setExpandedId(expandedId === bt.id ? null : bt.id)} className="p-1 text-gray-400 hover:text-gray-600">
                   {expandedId === bt.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>
                 <button onClick={() => openEdit(bt)} className="p-1 text-gray-400 hover:text-indigo-600"><Pencil className="w-4 h-4" /></button>
-                <button onClick={() => { if (confirm('Bu işletme tipini silmek istediğinize emin misiniz?')) deleteMut.mutate(bt.id); }} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={() => { if (confirm(t('superadmin.businessTypes.deleteConfirm'))) deleteMut.mutate(bt.id); }} className="p-1 text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
               </div>
 
               {expandedId === bt.id && (
                 <div className="border-t border-gray-100 px-4 py-3 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Ön Tanımlı Hizmetler</p>
-                    {bt.template_services.length === 0 ? <p className="text-xs text-gray-400">Yok</p> : (
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{t('superadmin.businessTypes.templateServices')}</p>
+                    {bt.template_services.length === 0 ? <p className="text-xs text-gray-400">{t('superadmin.businessTypes.noServices')}</p> : (
                       <div className="space-y-1">
                         {bt.template_services.map((s, i) => (
                           <div key={i} className="text-xs text-gray-700 flex justify-between">
@@ -197,14 +199,14 @@ export default function BusinessTypesPage() {
                     )}
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Ek Form Alanları</p>
-                    {bt.booking_form_fields.length === 0 ? <p className="text-xs text-gray-400">Standart form (ad, soyad, telefon)</p> : (
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{t('superadmin.businessTypes.formFields')}</p>
+                    {bt.booking_form_fields.length === 0 ? <p className="text-xs text-gray-400">{t('superadmin.businessTypes.standardForm')}</p> : (
                       <div className="space-y-1">
                         {bt.booking_form_fields.map((f, i) => (
                           <div key={i} className="text-xs text-gray-700 flex gap-2">
                             <span className="font-medium">{f.label}</span>
                             <span className="text-gray-400">{f.type}</span>
-                            {f.required && <span className="text-red-400">*zorunlu</span>}
+                            {f.required && <span className="text-red-400">*{t('superadmin.businessTypes.requiredFieldCheck')}</span>}
                           </div>
                         ))}
                       </div>
@@ -222,68 +224,71 @@ export default function BusinessTypesPage() {
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-2xl my-8">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900">{modal === 'edit' ? 'İşletme Tipini Düzenle' : 'Yeni İşletme Tipi'}</h2>
+              <h2 className="font-semibold text-gray-900">
+                {modal === 'edit' ? t('superadmin.businessTypes.editTitle') : t('superadmin.businessTypes.createTitle')}
+              </h2>
               <button onClick={closeModal}><X className="w-5 h-5 text-gray-400" /></button>
             </div>
 
             <div className="px-6 py-4 space-y-6 overflow-y-auto max-h-[70vh]">
-              {/* Temel bilgiler */}
+              {/* Basic info */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tip Adı <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('superadmin.businessTypes.nameLabel')}</label>
                   <input value={form.name ?? ''} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Berber" />
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder={t('superadmin.businessTypes.namePlaceholder')} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">İkon (emoji)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('superadmin.businessTypes.iconLabel')}</label>
                   <input value={form.icon ?? ''} onChange={e => setForm(f => ({ ...f, icon: e.target.value }))}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="💈" />
                 </div>
                 <div className="flex items-center gap-2 pt-6">
                   <input type="checkbox" id="is_active" checked={form.is_active ?? true} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} className="w-4 h-4 accent-indigo-600" />
-                  <label htmlFor="is_active" className="text-sm text-gray-700">Aktif</label>
+                  <label htmlFor="is_active" className="text-sm text-gray-700">{t('common.active')}</label>
                 </div>
               </div>
 
-              {/* Ön tanımlı hizmetler */}
+              {/* Template services */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-gray-700">Ön Tanımlı Hizmetler</h3>
+                  <h3 className="text-sm font-semibold text-gray-700">{t('superadmin.businessTypes.templateServices')}</h3>
                   <button onClick={() => setForm(f => ({ ...f, template_services: [...(f.template_services ?? []), emptyService()] }))}
                     className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
-                    <Plus className="w-3 h-3" /> Ekle
+                    <Plus className="w-3 h-3" /> {t('common.add')}
                   </button>
                 </div>
                 <div className="space-y-2">
                   {(form.template_services ?? []).map((svc, i) => (
                     <div key={i} className="grid grid-cols-12 gap-2 items-center">
                       <input value={svc.name} onChange={e => setService(i, { name: e.target.value })}
-                        placeholder="Hizmet adı" className="col-span-4 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                        placeholder={t('superadmin.businessTypes.serviceNamePlaceholder')}
+                        className="col-span-4 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                       <input value={svc.category ?? ''} onChange={e => setService(i, { category: e.target.value })}
-                        placeholder="Kategori" className="col-span-3 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                        placeholder={t('superadmin.businessTypes.serviceCategoryPlaceholder')}
+                        className="col-span-3 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                       <input type="number" value={svc.duration_minutes} onChange={e => setService(i, { duration_minutes: Number(e.target.value) })}
-                        placeholder="Dk" className="col-span-2 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                        placeholder={t('superadmin.businessTypes.serviceDurationPlaceholder')}
+                        className="col-span-2 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                       <input type="number" value={svc.price} onChange={e => setService(i, { price: Number(e.target.value) })}
                         placeholder="₺" className="col-span-2 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                       <button onClick={() => removeService(i)} className="col-span-1 flex justify-center text-red-400 hover:text-red-600"><X className="w-3.5 h-3.5" /></button>
                     </div>
                   ))}
-                  {(form.template_services ?? []).length > 0 && (
-                    <p className="text-xs text-gray-400">Ad · Kategori · Süre(dk) · Fiyat(₺)</p>
-                  )}
                 </div>
               </div>
 
-              {/* Ek form alanları */}
+              {/* Extra form fields */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-700">Ek Randevu Form Alanları</h3>
-                    <p className="text-xs text-gray-400">Ad soyad ve telefon her zaman gösterilir, buraya ekstra alanlar ekleyin.</p>
+                    <h3 className="text-sm font-semibold text-gray-700">{t('superadmin.businessTypes.formFields')}</h3>
+                    <p className="text-xs text-gray-400">{t('superadmin.businessTypes.formFieldsDesc')}</p>
                   </div>
                   <button onClick={() => setForm(f => ({ ...f, booking_form_fields: [...(f.booking_form_fields ?? []), emptyField()] }))}
                     className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1 shrink-0">
-                    <Plus className="w-3 h-3" /> Ekle
+                    <Plus className="w-3 h-3" /> {t('common.add')}
                   </button>
                 </div>
                 <div className="space-y-3">
@@ -291,20 +296,21 @@ export default function BusinessTypesPage() {
                     <div key={i} className="border border-gray-200 rounded-lg p-3 space-y-2">
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-xs text-gray-500 mb-0.5">Alan Adı (key)</label>
+                          <label className="block text-xs text-gray-500 mb-0.5">{t('superadmin.businessTypes.fieldKeyLabel')}</label>
                           <input value={ff.key} onChange={e => setField(i, { key: e.target.value.replace(/\s/g, '_').toLowerCase() })}
                             placeholder="plate" className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-500 mb-0.5">Etiket</label>
+                          <label className="block text-xs text-gray-500 mb-0.5">{t('superadmin.businessTypes.fieldLabelCol')}</label>
                           <input value={ff.label} onChange={e => setField(i, { label: e.target.value })}
-                            placeholder="Araç Plakası" className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                            placeholder={t('superadmin.businessTypes.fieldLabelPlaceholder')}
+                            className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-500 mb-0.5">Tip</label>
+                          <label className="block text-xs text-gray-500 mb-0.5">{t('superadmin.businessTypes.fieldTypeCol')}</label>
                           <select value={ff.type} onChange={e => setField(i, { type: e.target.value as BookingFormField['type'] })}
                             className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500">
-                            {FIELD_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                            {FIELD_TYPES.map(ft => <option key={ft.value} value={ft.value}>{ft.label}</option>)}
                           </select>
                         </div>
                         <div>
@@ -315,17 +321,20 @@ export default function BusinessTypesPage() {
                       </div>
                       {ff.type === 'select' && (
                         <div>
-                          <label className="block text-xs text-gray-500 mb-0.5">Seçenekler (virgülle ayırın)</label>
+                          <label className="block text-xs text-gray-500 mb-0.5">{t('superadmin.businessTypes.fieldOptions')}</label>
                           <input value={(ff.options ?? []).join(',')} onChange={e => setField(i, { options: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-                            placeholder="Sedan, SUV, Hatchback" className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
+                            placeholder={t('superadmin.businessTypes.fieldOptionPlaceholder')}
+                            className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500" />
                         </div>
                       )}
                       <div className="flex items-center justify-between">
                         <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
                           <input type="checkbox" checked={ff.required} onChange={e => setField(i, { required: e.target.checked })} className="w-3.5 h-3.5 accent-indigo-600" />
-                          Zorunlu alan
+                          {t('superadmin.businessTypes.requiredFieldCheck')}
                         </label>
-                        <button onClick={() => removeField(i)} className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1"><X className="w-3 h-3" /> Kaldır</button>
+                        <button onClick={() => removeField(i)} className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1">
+                          <X className="w-3 h-3" /> {t('superadmin.businessTypes.remove')}
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -334,10 +343,10 @@ export default function BusinessTypesPage() {
             </div>
 
             <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
-              <button onClick={closeModal} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">İptal</button>
+              <button onClick={closeModal} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">{t('common.cancel')}</button>
               <button onClick={save} disabled={!form.name || isPending}
                 className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium px-5 py-2 rounded-lg">
-                {isPending ? 'Kaydediliyor...' : 'Kaydet'}
+                {isPending ? t('common.saving') : t('common.save')}
               </button>
             </div>
           </div>

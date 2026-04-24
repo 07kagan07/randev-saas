@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Check, Clock, Calendar, Ban } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import DatePicker from '../../components/shared/DatePicker';
+import { userLocale } from '../../utils/locale';
 import api from '../../services/api';
-
-const DAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
 type BlockType = 'hours' | 'fullday' | 'multiday';
 
@@ -29,24 +29,6 @@ const defaultHours = (): WorkingHour[] =>
     day_of_week: i, is_open: i < 5, start_time: '09:00', end_time: '18:00',
   }));
 
-const BLOCK_TYPES: { key: BlockType; label: string; desc: string }[] = [
-  { key: 'hours',    label: 'Belirli Saatler', desc: 'O günün bir kısmı' },
-  { key: 'fullday',  label: 'Tam Gün',         desc: 'Tek gün kapalı' },
-  { key: 'multiday', label: 'Tatil / İzin',    desc: 'Birden fazla gün' },
-];
-
-function formatBlockLabel(b: any) {
-  const start = new Date(b.start_at);
-  const end   = new Date(b.end_at);
-  const fmt   = (d: Date) => d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
-  const time  = (d: Date) => d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-  const sameDay = start.toDateString() === end.toDateString();
-  const fullDay = time(start) === '00:00' && (time(end) === '23:59' || time(end) === '00:00');
-  if (sameDay && fullDay) return { date: fmt(start), sub: 'Tüm gün',              type: 'fullday'  as BlockType };
-  if (sameDay)            return { date: fmt(start), sub: `${time(start)} – ${time(end)}`, type: 'hours' as BlockType };
-  return                         { date: `${fmt(start)} – ${fmt(end)}`, sub: 'Tatil / İzin', type: 'multiday' as BlockType };
-}
-
 const TYPE_BADGE: Record<BlockType, string> = {
   hours:    'bg-orange-50 text-orange-600',
   fullday:  'bg-red-50 text-red-500',
@@ -54,9 +36,31 @@ const TYPE_BADGE: Record<BlockType, string> = {
 };
 
 export default function AdminMySchedulePage() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const staffId = user?.id!;
+
+  const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+  const DAYS = DAY_KEYS.map(k => t(`common.days.${k}`));
+
+  const BLOCK_TYPES: { key: BlockType; label: string; desc: string }[] = [
+    { key: 'hours',    label: t('workingHours.blockTypes.specificHours'), desc: t('staff.blockTypePartialDesc') },
+    { key: 'fullday',  label: t('workingHours.blockTypes.fullDay'),       desc: t('staff.blockTypeSingleDesc') },
+    { key: 'multiday', label: t('workingHours.blockTypes.vacation'),      desc: t('staff.blockTypeMultiDesc') },
+  ];
+
+  const formatBlockLabel = (b: any) => {
+    const start = new Date(b.start_at);
+    const end   = new Date(b.end_at);
+    const fmt   = (d: Date) => d.toLocaleDateString(userLocale, { day: 'numeric', month: 'long' });
+    const time  = (d: Date) => d.toLocaleTimeString(userLocale, { hour: '2-digit', minute: '2-digit' });
+    const sameDay = start.toDateString() === end.toDateString();
+    const fullDay = time(start) === '00:00' && (time(end) === '23:59' || time(end) === '00:00');
+    if (sameDay && fullDay) return { date: fmt(start), sub: t('common.fullDay'),                       type: 'fullday'  as BlockType };
+    if (sameDay)            return { date: fmt(start), sub: `${time(start)} – ${time(end)}`,           type: 'hours'    as BlockType };
+    return                         { date: `${fmt(start)} – ${fmt(end)}`, sub: t('staff.blockLabel.vacation'), type: 'multiday' as BlockType };
+  };
 
   const [hours,     setHours]     = useState<WorkingHour[]>(defaultHours());
   const [blockForm, setBlockForm] = useState<BlockForm>(emptyBlockForm());
@@ -141,13 +145,12 @@ export default function AdminMySchedulePage() {
 
   return (
     <div className="max-w-xl">
-      
 
-      {/* ── Haftalık Program ─────────────────────────────── */}
+      {/* ── Weekly Schedule ─────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-200 mb-5 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
-          <p className="font-semibold text-gray-900">Haftalık Program</p>
-          <p className="text-xs text-gray-400 mt-0.5">Hangi günler ve saatler arasında randevu alabileceğinizi belirleyin.</p>
+          <p className="font-semibold text-gray-900">{t('staff.weeklySchedule')}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{t('workingHours.weeklyProgramDesc')}</p>
         </div>
 
         <div className="divide-y divide-gray-100">
@@ -188,7 +191,7 @@ export default function AdminMySchedulePage() {
                   />
                 </div>
               ) : (
-                <span className="shrink-0 text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">Kapalı</span>
+                <span className="shrink-0 text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">{t('common.closed')}</span>
               )}
             </div>
           ))}
@@ -201,25 +204,25 @@ export default function AdminMySchedulePage() {
             className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium py-2.5 rounded-xl flex items-center justify-center gap-2 transition-colors"
           >
             {saved
-              ? <><Check className="w-4 h-4" /> Kaydedildi</>
-              : saveHours.isPending ? 'Kaydediliyor...' : 'Saatleri Kaydet'}
+              ? <><Check className="w-4 h-4" /> {t('common.saved')}</>
+              : saveHours.isPending ? t('common.saving') : t('workingHours.save')}
           </button>
         </div>
       </div>
 
-      {/* ── Blok Dönemler ────────────────────────────────── */}
+      {/* ── Blocked Periods ────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
-            <p className="font-semibold text-gray-900">Müsait Olmadığım Zamanlar</p>
-            <p className="text-xs text-gray-400 mt-0.5">Belirli saatler veya günler için randevu kapatın.</p>
+            <p className="font-semibold text-gray-900">{t('workingHours.blockPeriods')}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{t('workingHours.unavailableDesc')}</p>
           </div>
           {!blockOpen && (
             <button
               onClick={() => setBlockOpen(true)}
               className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
             >
-              <Plus className="w-4 h-4" /> Ekle
+              <Plus className="w-4 h-4" /> {t('common.add')}
             </button>
           )}
         </div>
@@ -227,18 +230,18 @@ export default function AdminMySchedulePage() {
         {blockOpen && (
           <div className="px-5 py-4 border-b border-gray-100 bg-slate-50 space-y-4">
             <div className="grid grid-cols-3 gap-1.5">
-              {BLOCK_TYPES.map(t => (
+              {BLOCK_TYPES.map(bt => (
                 <button
-                  key={t.key}
-                  onClick={() => setBlock({ blockType: t.key })}
+                  key={bt.key}
+                  onClick={() => setBlock({ blockType: bt.key })}
                   className={`py-2.5 px-2 rounded-xl text-center transition-all border ${
-                    blockForm.blockType === t.key
+                    blockForm.blockType === bt.key
                       ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
                       : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
                   }`}
                 >
-                  <p className="text-xs font-semibold">{t.label}</p>
-                  <p className={`text-[10px] mt-0.5 ${blockForm.blockType === t.key ? 'text-indigo-200' : 'text-gray-400'}`}>{t.desc}</p>
+                  <p className="text-xs font-semibold">{bt.label}</p>
+                  <p className={`text-[10px] mt-0.5 ${blockForm.blockType === bt.key ? 'text-indigo-200' : 'text-gray-400'}`}>{bt.desc}</p>
                 </button>
               ))}
             </div>
@@ -246,24 +249,24 @@ export default function AdminMySchedulePage() {
             {blockForm.blockType === 'multiday' ? (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1.5">Başlangıç</p>
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">{t('appointments.from')}</p>
                   <DatePicker value={blockForm.date} min={today} onChange={v => setBlock({ date: v })} />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1.5">Bitiş</p>
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">{t('appointments.to')}</p>
                   <DatePicker value={blockForm.endDate} min={blockForm.date || today} onChange={v => setBlock({ endDate: v })} />
                 </div>
               </div>
             ) : (
               <div>
-                <p className="text-xs font-medium text-gray-500 mb-1.5">Tarih</p>
+                <p className="text-xs font-medium text-gray-500 mb-1.5">{t('booking.steps.date')}</p>
                 <DatePicker value={blockForm.date} min={today} onChange={v => setBlock({ date: v })} />
               </div>
             )}
 
             {blockForm.blockType === 'hours' && (
               <div>
-                <p className="text-xs font-medium text-gray-500 mb-1.5">Kapalı olacak saat aralığı</p>
+                <p className="text-xs font-medium text-gray-500 mb-1.5">{t('staff.closedTimeRange')}</p>
                 <div className="flex items-center gap-2">
                   <input
                     type="time"
@@ -280,17 +283,19 @@ export default function AdminMySchedulePage() {
                   />
                 </div>
                 {blockForm.startTime && blockForm.endTime && blockForm.startTime >= blockForm.endTime && (
-                  <p className="text-red-500 text-xs mt-1.5">Bitiş saati başlangıçtan sonra olmalı.</p>
+                  <p className="text-red-500 text-xs mt-1.5">{t('staff.endAfterStart')}</p>
                 )}
               </div>
             )}
 
             <div>
-              <p className="text-xs font-medium text-gray-500 mb-1.5">Açıklama <span className="text-gray-400 font-normal">(opsiyonel)</span></p>
+              <p className="text-xs font-medium text-gray-500 mb-1.5">
+                {t('workingHours.reasonLabel')} <span className="text-gray-400 font-normal">({t('common.optional')})</span>
+              </p>
               <input
                 value={blockForm.reason}
                 onChange={e => setBlock({ reason: e.target.value })}
-                placeholder="örn. Araç servis, İzin, Özel randevu"
+                placeholder={t('workingHours.reasonPlaceholder')}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-shadow placeholder:text-gray-300"
               />
             </div>
@@ -301,17 +306,17 @@ export default function AdminMySchedulePage() {
                 disabled={addBlock.isPending || !canSave}
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-200 text-white text-sm font-medium py-2.5 rounded-xl transition-colors"
               >
-                {addBlock.isPending ? 'Ekleniyor...' : 'Ekle'}
+                {addBlock.isPending ? t('common.adding') : t('common.add')}
               </button>
               <button
                 onClick={() => { setBlockOpen(false); setBlockForm(emptyBlockForm()); }}
                 className="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-white transition-colors"
               >
-                İptal
+                {t('common.cancel')}
               </button>
             </div>
             {addBlock.isError && (
-              <p className="text-red-600 text-xs">{(addBlock.error as any)?.response?.data?.message ?? 'Hata oluştu.'}</p>
+              <p className="text-red-600 text-xs">{(addBlock.error as any)?.response?.data?.message ?? t('common.errorOccurred')}</p>
             )}
           </div>
         )}
@@ -319,7 +324,7 @@ export default function AdminMySchedulePage() {
         {blocks.length === 0 ? (
           <div className="flex flex-col items-center py-10 gap-2 text-gray-400">
             <Ban className="w-8 h-8 text-gray-200" />
-            <p className="text-sm">Henüz blok zaman eklenmemiş.</p>
+            <p className="text-sm">{t('workingHours.noBlocksYet')}</p>
           </div>
         ) : (
           <ul className="divide-y divide-gray-100">

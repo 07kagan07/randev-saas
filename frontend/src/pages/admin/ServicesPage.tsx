@@ -1,8 +1,10 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { GripVertical, ChevronUp, ChevronDown, UserCheck } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import api from '../../services/api';
+import { fmtNumber } from '../../utils/locale';
 
 interface StaffMember {
   id: string;
@@ -15,6 +17,7 @@ interface Service {
   name: string;
   duration_minutes: number;
   price: number;
+  currency?: string;
   category: string | null;
   is_active: boolean;
   staff_services?: { staff: StaffMember }[];
@@ -44,7 +47,7 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
   );
 }
 
-// ─── Hizmet Formu ─────────────────────────────────────────────────────────────
+// ─── Service Form ─────────────────────────────────────────────────────────────
 
 function ServiceForm({ form, setForm, existingCategories, staffList, onSubmit, isPending }: {
   form: FormState;
@@ -54,6 +57,8 @@ function ServiceForm({ form, setForm, existingCategories, staffList, onSubmit, i
   onSubmit: () => void;
   isPending: boolean;
 }) {
+  const { t } = useTranslation();
+
   const filteredCats = form.category.trim()
     ? existingCategories.filter(c => c.toLowerCase().includes(form.category.toLowerCase()))
     : existingCategories;
@@ -70,23 +75,23 @@ function ServiceForm({ form, setForm, existingCategories, staffList, onSubmit, i
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Hizmet Adı</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('services.serviceNameLabel')}</label>
         <input
           value={form.name}
           onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          placeholder="Saç Kesimi"
+          placeholder={t('services.namePlaceholder')}
         />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Süre (dk)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('services.durationLabel')}</label>
           <input type="number" min={5} value={form.duration_minutes}
             onChange={e => setForm(f => ({ ...f, duration_minutes: Number(e.target.value) }))}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Fiyat (₺)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('services.priceLabel')}</label>
           <input type="number" min={0} step={0.01} value={form.price}
             onChange={e => setForm(f => ({ ...f, price: Number(e.target.value) }))}
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
@@ -94,11 +99,11 @@ function ServiceForm({ form, setForm, existingCategories, staffList, onSubmit, i
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Kategori</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('services.categoryLabel')}</label>
         <input list="cat-suggestions" value={form.category}
           onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          placeholder={existingCategories.length ? 'Seçin veya yazın...' : 'Saç, Tırnak...'} />
+          placeholder={existingCategories.length ? t('services.categoryPlaceholder') : t('services.categoryHint')} />
         <datalist id="cat-suggestions">
           {existingCategories.map(c => <option key={c} value={c} />)}
         </datalist>
@@ -116,11 +121,11 @@ function ServiceForm({ form, setForm, existingCategories, staffList, onSubmit, i
         )}
       </div>
 
-      {/* Personel seçimi */}
+      {/* Staff selection */}
       {staffList.length > 0 && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Bu hizmeti yapabilecek personel
+            {t('services.staffForService')}
           </label>
           <div className="space-y-2">
             {staffList.map(s => {
@@ -148,7 +153,7 @@ function ServiceForm({ form, setForm, existingCategories, staffList, onSubmit, i
             })}
           </div>
           {form.staff_ids.length === 0 && (
-            <p className="text-xs text-amber-600 mt-1.5">Seçim yapılmazsa tüm personel bu hizmeti yapabilir.</p>
+            <p className="text-xs text-amber-600 mt-1.5">{t('services.noStaffSelected')}</p>
           )}
         </div>
       )}
@@ -158,13 +163,13 @@ function ServiceForm({ form, setForm, existingCategories, staffList, onSubmit, i
         disabled={isPending || !form.name.trim() || !form.category.trim()}
         className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium py-2.5 rounded-lg"
       >
-        {isPending ? 'Kaydediliyor...' : 'Kaydet'}
+        {isPending ? t('common.saving') : t('common.save')}
       </button>
     </div>
   );
 }
 
-// ─── Sürüklenebilir Kategori Kartı ───────────────────────────────────────────
+// ─── Draggable Category Card ──────────────────────────────────────────────────
 
 function DraggableCategoryCard({ cat, count, dragOver, children, onReorder, onMoveUp, onMoveDown, isFirst, isLast }: {
   cat: string;
@@ -177,6 +182,7 @@ function DraggableCategoryCard({ cat, count, dragOver, children, onReorder, onMo
   isFirst: boolean;
   isLast: boolean;
 }) {
+  const { t } = useTranslation();
   const dragSrc = useRef<string | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -235,7 +241,7 @@ function DraggableCategoryCard({ cat, count, dragOver, children, onReorder, onMo
           <GripVertical className="w-4 h-4 text-gray-300 shrink-0" />
         </div>
         <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">{cat}</span>
-        <span className="text-xs text-gray-400 ml-auto">{count} hizmet</span>
+        <span className="text-xs text-gray-400 ml-auto">{count} {t('superadmin.businessTypes.serviceCountLabel')}</span>
         <div className="flex gap-0.5 ml-2">
           <button onClick={onMoveUp} disabled={isFirst} className="p-1 rounded-lg disabled:opacity-20 hover:bg-gray-100 transition-colors">
             <ChevronUp className="w-4 h-4 text-gray-500" />
@@ -250,14 +256,15 @@ function DraggableCategoryCard({ cat, count, dragOver, children, onReorder, onMo
   );
 }
 
-// ─── Ana Sayfa ────────────────────────────────────────────────────────────────
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 const emptyForm = (staffList: StaffMember[]): FormState => ({
   name: '', duration_minutes: 30, price: 0, category: '',
-  staff_ids: staffList.map(s => s.id), // varsayılan: tüm personel seçili
+  staff_ids: staffList.map(s => s.id),
 });
 
 export default function AdminServicesPage() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const bid = user?.business_id!;
   const qc = useQueryClient();
@@ -358,9 +365,8 @@ export default function AdminServicesPage() {
           <div className="min-w-0">
             <p className="font-medium text-gray-900 text-sm">{s.name}</p>
             <p className="text-xs text-gray-400">
-              {s.duration_minutes} dk · {Number(s.price).toLocaleString('tr-TR')} ₺
+              {s.duration_minutes} {t('common.minutes')} · {fmtNumber(Number(s.price))} {s.currency ?? 'TRY'}
             </p>
-            {/* Personel avatarları */}
             {assignedStaff.length > 0 && (
               <div className="flex items-center gap-1 mt-1.5 flex-wrap">
                 {assignedStaff.map(p => (
@@ -374,20 +380,20 @@ export default function AdminServicesPage() {
               </div>
             )}
             {assignedStaff.length === 0 && staffList.length > 0 && (
-              <p className="text-xs text-amber-600 mt-1">Tüm personel</p>
+              <p className="text-xs text-amber-600 mt-1">{t('services.allStaff')}</p>
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <span className={`text-xs px-2 py-1 rounded-full ${s.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-              {s.is_active ? 'Aktif' : 'Pasif'}
+              {s.is_active ? t('common.active') : t('common.passive')}
             </span>
             <button onClick={() => openEdit(s)}
               className="text-xs text-indigo-600 hover:text-indigo-800 px-3 py-1.5 border border-indigo-200 rounded-lg">
-              Düzenle
+              {t('common.edit')}
             </button>
-            <button onClick={() => { if (confirm('Hizmeti silmek istediğinize emin misiniz?')) deleteService.mutate(s.id); }}
+            <button onClick={() => { if (confirm(t('services.deleteConfirm'))) deleteService.mutate(s.id); }}
               className="text-xs text-red-500 hover:text-red-700 px-3 py-1.5 border border-red-200 rounded-lg">
-              Sil
+              {t('common.delete')}
             </button>
           </div>
         </div>
@@ -400,7 +406,7 @@ export default function AdminServicesPage() {
       <div className="flex items-center justify-end mb-6">
         <button onClick={openAdd}
           className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg">
-          + Hizmet Ekle
+          + {t('services.addService')}
         </button>
       </div>
 
@@ -410,14 +416,14 @@ export default function AdminServicesPage() {
         </div>
       ) : serviceList.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-          <p className="text-gray-400 text-sm mb-3">Henüz hizmet eklenmemiş.</p>
-          <button onClick={openAdd} className="text-indigo-600 text-sm hover:underline">Hizmet ekle →</button>
+          <p className="text-gray-400 text-sm mb-3">{t('services.noServices')}</p>
+          <button onClick={openAdd} className="text-indigo-600 text-sm hover:underline">{t('services.addService')} →</button>
         </div>
       ) : (
         <div className="space-y-4">
           {orderedCategories.length > 1 && (
             <p className="text-xs text-gray-400 flex items-center gap-1">
-              <GripVertical className="w-3 h-3" /> Başlığı tutup sürükleyerek kategori sırasını değiştirebilirsiniz
+              <GripVertical className="w-3 h-3" /> {t('services.dragToReorder')}
             </p>
           )}
           {orderedCategories.map((cat, idx) => (
@@ -432,7 +438,7 @@ export default function AdminServicesPage() {
           {uncategorized.length > 0 && (
             <div className="rounded-xl border border-gray-200 bg-white">
               <div className="px-4 py-3 border-b border-gray-100">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Kategorisiz</span>
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('services.uncategorized')}</span>
               </div>
               <ul className="divide-y divide-gray-50">{uncategorized.map(renderServiceRow)}</ul>
             </div>
@@ -441,13 +447,13 @@ export default function AdminServicesPage() {
       )}
 
       {addOpen && (
-        <Modal title="Hizmet Ekle" onClose={() => setAddOpen(false)}>
+        <Modal title={t('services.addService')} onClose={() => setAddOpen(false)}>
           <ServiceForm form={form} setForm={setForm} existingCategories={orderedCategories}
             staffList={staffList} onSubmit={() => createService.mutate()} isPending={createService.isPending} />
         </Modal>
       )}
       {editService && (
-        <Modal title="Hizmet Düzenle" onClose={() => setEditService(null)}>
+        <Modal title={t('services.editService')} onClose={() => setEditService(null)}>
           <ServiceForm form={form} setForm={setForm} existingCategories={orderedCategories}
             staffList={staffList} onSubmit={() => updateService.mutate(editService.id)} isPending={updateService.isPending} />
         </Modal>

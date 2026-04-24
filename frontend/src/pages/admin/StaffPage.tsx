@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Clock, Calendar, Ban } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import DatePicker from '../../components/shared/DatePicker';
+import { userLocale } from '../../utils/locale';
 import api from '../../services/api';
-
-const DAYS = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
 type BlockType = 'hours' | 'fullday' | 'multiday';
 
@@ -23,24 +23,6 @@ interface BlockForm {
 const emptyBlockForm = (): BlockForm => ({
   blockType: 'hours', date: '', endDate: '', startTime: '09:00', endTime: '10:00', reason: '',
 });
-
-const BLOCK_TYPES: { key: BlockType; label: string; desc: string }[] = [
-  { key: 'hours',    label: 'Belirli Saatler', desc: 'Kısmi gün' },
-  { key: 'fullday',  label: 'Tam Gün',         desc: 'Tek gün' },
-  { key: 'multiday', label: 'Tatil / İzin',    desc: 'Çok günlü' },
-];
-
-function formatBlockLabel(b: any) {
-  const start = new Date(b.start_at);
-  const end   = new Date(b.end_at);
-  const fmt   = (d: Date) => d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
-  const time  = (d: Date) => d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-  const sameDay = start.toDateString() === end.toDateString();
-  const fullDay = time(start) === '00:00' && (time(end) === '23:59' || time(end) === '00:00');
-  if (sameDay && fullDay) return { date: fmt(start), sub: 'Tüm gün',              type: 'fullday'  as BlockType };
-  if (sameDay)            return { date: fmt(start), sub: `${time(start)} – ${time(end)}`, type: 'hours' as BlockType };
-  return                         { date: `${fmt(start)} – ${fmt(end)}`, sub: 'Tatil / İzin', type: 'multiday' as BlockType };
-}
 
 const TYPE_BADGE: Record<BlockType, string> = {
   hours:    'bg-orange-50 text-orange-600',
@@ -63,9 +45,31 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 }
 
 export default function AdminStaffPage() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const bid = user?.business_id!;
   const qc = useQueryClient();
+
+  const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+  const DAYS = DAY_KEYS.map(k => t(`common.days.${k}`));
+
+  const BLOCK_TYPES: { key: BlockType; label: string; desc: string }[] = [
+    { key: 'hours',    label: t('staff.blockTypes.specificHours'), desc: t('staff.blockTypePartialDesc') },
+    { key: 'fullday',  label: t('staff.blockTypes.fullDay'),       desc: t('staff.blockTypeSingleDesc') },
+    { key: 'multiday', label: t('staff.blockTypes.vacation'),      desc: t('staff.blockTypeMultiDesc') },
+  ];
+
+  const formatBlockLabel = (b: any) => {
+    const start = new Date(b.start_at);
+    const end   = new Date(b.end_at);
+    const fmt   = (d: Date) => d.toLocaleDateString(userLocale, { day: 'numeric', month: 'long' });
+    const time  = (d: Date) => d.toLocaleTimeString(userLocale, { hour: '2-digit', minute: '2-digit' });
+    const sameDay = start.toDateString() === end.toDateString();
+    const fullDay = time(start) === '00:00' && (time(end) === '23:59' || time(end) === '00:00');
+    if (sameDay && fullDay) return { date: fmt(start), sub: t('common.fullDay'),                    type: 'fullday'  as BlockType };
+    if (sameDay)            return { date: fmt(start), sub: `${time(start)} – ${time(end)}`,        type: 'hours'    as BlockType };
+    return                         { date: `${fmt(start)} – ${fmt(end)}`, sub: t('staff.blockLabel.vacation'), type: 'multiday' as BlockType };
+  };
 
   const [addOpen, setAddOpen] = useState(false);
   const [hoursStaff, setHoursStaff] = useState<Staff | null>(null);
@@ -160,12 +164,16 @@ export default function AdminStaffPage() {
     (blockForm.startTime < blockForm.endTime)
   );
 
+  const tabs = [
+    { key: 'schedule', label: t('staff.weeklySchedule') },
+    { key: 'blocks',   label: t('staff.blockedPeriods') },
+  ];
+
   return (
     <div>
       <div className="flex items-center justify-end mb-6">
-
         <button onClick={() => setAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg">
-          + Personel Ekle
+          + {t('staff.addStaff')}
         </button>
       </div>
 
@@ -173,8 +181,8 @@ export default function AdminStaffPage() {
         <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500" /></div>
       ) : staffList.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
-          <p className="text-gray-400 text-sm mb-3">Henüz personel eklenmemiş.</p>
-          <button onClick={() => setAddOpen(true)} className="text-indigo-600 text-sm hover:underline">Personel ekle →</button>
+          <p className="text-gray-400 text-sm mb-3">{t('staff.noStaff')}</p>
+          <button onClick={() => setAddOpen(true)} className="text-indigo-600 text-sm hover:underline">{t('staff.addStaffLink')}</button>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -192,7 +200,7 @@ export default function AdminStaffPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs px-2 py-1 rounded-full ${s.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {s.is_active ? 'Aktif' : 'Pasif'}
+                    {s.is_active ? t('common.active') : t('common.passive')}
                   </span>
                   <button
                     onClick={() => {
@@ -204,13 +212,13 @@ export default function AdminStaffPage() {
                     }}
                     className="text-xs text-indigo-600 hover:text-indigo-800 px-3 py-1.5 border border-indigo-200 rounded-lg"
                   >
-                    Saatler
+                    {t('staff.hoursBtn')}
                   </button>
                   <button
-                    onClick={() => { if (confirm('Personeli silmek istediğinize emin misiniz?')) deleteStaff.mutate(s.id); }}
+                    onClick={() => { if (confirm(t('staff.deleteConfirm'))) deleteStaff.mutate(s.id); }}
                     className="text-xs text-red-500 hover:text-red-700 px-3 py-1.5 border border-red-200 rounded-lg"
                   >
-                    Sil
+                    {t('common.delete')}
                   </button>
                 </div>
               </li>
@@ -219,28 +227,28 @@ export default function AdminStaffPage() {
         </div>
       )}
 
-      {/* Personel Ekle Modal */}
+      {/* Add Staff Modal */}
       {addOpen && (
-        <Modal title="Personel Ekle" onClose={() => setAddOpen(false)}>
+        <Modal title={t('staff.addStaff')} onClose={() => setAddOpen(false)}>
           <div className="px-6 py-4 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ad Soyad</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('auth.fullName')}</label>
               <input
                 value={form.full_name}
                 onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                placeholder="Ahmet Yılmaz"
+                placeholder={t('auth.fullNamePlaceholder')}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('auth.phone')}</label>
               <div className="flex rounded-lg border border-gray-300 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500">
                 <span className="inline-flex items-center px-3 bg-gray-50 text-gray-500 text-sm border-r border-gray-300">+90</span>
                 <input
                   value={form.phone}
                   onChange={e => setForm(f => ({ ...f, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
                   className="flex-1 px-3 py-2 text-sm outline-none"
-                  placeholder="5xx xxx xxxx"
+                  placeholder={t('auth.phonePlaceholder')}
                 />
               </div>
             </div>
@@ -249,38 +257,35 @@ export default function AdminStaffPage() {
               disabled={createStaff.isPending || !form.phone || !form.full_name}
               className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium py-2.5 rounded-lg"
             >
-              {createStaff.isPending ? 'Ekleniyor...' : 'Personel Ekle'}
+              {createStaff.isPending ? t('common.adding') : t('staff.addStaff')}
             </button>
             {createStaff.isError && <p className="text-red-600 text-xs">{(createStaff.error as any)?.response?.data?.message}</p>}
           </div>
         </Modal>
       )}
 
-      {/* Çalışma Saatleri & Blok Dönemler Modal */}
+      {/* Working Hours & Blocked Periods Modal */}
       {hoursStaff && (
         <Modal title={`${hoursStaff.full_name || hoursStaff.phone}`} onClose={() => setHoursStaff(null)}>
 
           {/* Tabs */}
           <div className="flex border-b border-gray-100 px-6 gap-1 shrink-0">
-            {[
-              { key: 'schedule', label: 'Haftalık Program' },
-              { key: 'blocks',   label: 'Müsait Olmadığı Zamanlar' },
-            ].map(t => (
+            {tabs.map(tab => (
               <button
-                key={t.key}
-                onClick={() => setActiveTab(t.key as any)}
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key as any)}
                 className={`py-3 px-1 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === t.key
+                  activeTab === tab.key
                     ? 'border-indigo-600 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {t.label}
+                {tab.label}
               </button>
             ))}
           </div>
 
-          {/* Tab: Haftalık Program */}
+          {/* Tab: Weekly Schedule */}
           {activeTab === 'schedule' && (
             <div>
               <div className="divide-y divide-gray-100">
@@ -322,7 +327,7 @@ export default function AdminStaffPage() {
                         />
                       </div>
                     ) : (
-                      <span className="shrink-0 text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">Kapalı</span>
+                      <span className="shrink-0 text-xs text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">{t('common.closed')}</span>
                     )}
                   </div>
                 ))}
@@ -333,68 +338,67 @@ export default function AdminStaffPage() {
                   disabled={saveHours.isPending}
                   className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium py-2.5 rounded-xl"
                 >
-                  {saveHours.isPending ? 'Kaydediliyor...' : 'Kaydet'}
+                  {saveHours.isPending ? t('common.saving') : t('common.save')}
                 </button>
               </div>
             </div>
           )}
 
-          {/* Tab: Müsait Olmadığı Zamanlar */}
+          {/* Tab: Blocked Periods */}
           {activeTab === 'blocks' && (
             <div>
-              {/* Ekle butonu / Form */}
               {!blockOpen ? (
                 <div className="px-6 py-3 border-b border-gray-100">
                   <button
                     onClick={() => setBlockOpen(true)}
                     className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
                   >
-                    <Plus className="w-4 h-4" /> Blok Zaman Ekle
+                    <Plus className="w-4 h-4" /> {t('staff.addBlockTime')}
                   </button>
                 </div>
               ) : (
                 <div className="px-6 py-4 border-b border-gray-100 bg-slate-50 space-y-4">
-                  {/* Tip seçici */}
+                  {/* Type selector */}
                   <div className="grid grid-cols-3 gap-1.5">
-                    {BLOCK_TYPES.map(t => (
+                    {BLOCK_TYPES.map(bt => (
                       <button
-                        key={t.key}
-                        onClick={() => setBlock({ blockType: t.key })}
+                        key={bt.key}
+                        onClick={() => setBlock({ blockType: bt.key })}
                         className={`py-2.5 px-2 rounded-xl text-center transition-all border ${
-                          blockForm.blockType === t.key
+                          blockForm.blockType === bt.key
                             ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
                             : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-600'
                         }`}
                       >
-                        <p className="text-xs font-semibold">{t.label}</p>
-                        <p className={`text-[10px] mt-0.5 ${blockForm.blockType === t.key ? 'text-indigo-200' : 'text-gray-400'}`}>{t.desc}</p>
+                        <p className="text-xs font-semibold">{bt.label}</p>
+                        <p className={`text-[10px] mt-0.5 ${blockForm.blockType === bt.key ? 'text-indigo-200' : 'text-gray-400'}`}>{bt.desc}</p>
                       </button>
                     ))}
                   </div>
 
-                  {/* Tarih(ler) */}
+                  {/* Date(s) */}
                   {blockForm.blockType === 'multiday' ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <p className="text-xs font-medium text-gray-500 mb-1.5">Başlangıç</p>
+                        <p className="text-xs font-medium text-gray-500 mb-1.5">{t('appointments.from')}</p>
                         <DatePicker value={blockForm.date} min={today} onChange={v => setBlock({ date: v })} />
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-gray-500 mb-1.5">Bitiş</p>
+                        <p className="text-xs font-medium text-gray-500 mb-1.5">{t('appointments.to')}</p>
                         <DatePicker value={blockForm.endDate} min={blockForm.date || today} onChange={v => setBlock({ endDate: v })} />
                       </div>
                     </div>
                   ) : (
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1.5">Tarih</p>
+                      <p className="text-xs font-medium text-gray-500 mb-1.5">{t('booking.steps.date')}</p>
                       <DatePicker value={blockForm.date} min={today} onChange={v => setBlock({ date: v })} />
                     </div>
                   )}
 
-                  {/* Saat aralığı */}
+                  {/* Time range */}
                   {blockForm.blockType === 'hours' && (
                     <div>
-                      <p className="text-xs font-medium text-gray-500 mb-1.5">Kapalı olacak saat aralığı</p>
+                      <p className="text-xs font-medium text-gray-500 mb-1.5">{t('staff.closedTimeRange')}</p>
                       <div className="flex items-center gap-2">
                         <input
                           type="time"
@@ -411,18 +415,20 @@ export default function AdminStaffPage() {
                         />
                       </div>
                       {blockForm.startTime && blockForm.endTime && blockForm.startTime >= blockForm.endTime && (
-                        <p className="text-red-500 text-xs mt-1.5">Bitiş saati başlangıçtan sonra olmalı.</p>
+                        <p className="text-red-500 text-xs mt-1.5">{t('staff.endAfterStart')}</p>
                       )}
                     </div>
                   )}
 
-                  {/* Açıklama */}
+                  {/* Reason */}
                   <div>
-                    <p className="text-xs font-medium text-gray-500 mb-1.5">Açıklama <span className="text-gray-400 font-normal">(opsiyonel)</span></p>
+                    <p className="text-xs font-medium text-gray-500 mb-1.5">
+                      {t('staff.reasonLabel')} <span className="text-gray-400 font-normal">({t('common.optional')})</span>
+                    </p>
                     <input
                       value={blockForm.reason}
                       onChange={e => setBlock({ reason: e.target.value })}
-                      placeholder="örn. İzin, Toplantı"
+                      placeholder={t('staff.reasonPlaceholder')}
                       className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none bg-white focus:ring-2 focus:ring-indigo-500 placeholder:text-gray-300"
                     />
                   </div>
@@ -433,26 +439,26 @@ export default function AdminStaffPage() {
                       disabled={addBlock.isPending || !canSave}
                       className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-200 text-white text-sm font-medium py-2.5 rounded-xl"
                     >
-                      {addBlock.isPending ? 'Ekleniyor...' : 'Ekle'}
+                      {addBlock.isPending ? t('common.adding') : t('common.add')}
                     </button>
                     <button
                       onClick={() => { setBlockOpen(false); setBlockForm(emptyBlockForm()); }}
                       className="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-white"
                     >
-                      İptal
+                      {t('common.cancel')}
                     </button>
                   </div>
                   {addBlock.isError && (
-                    <p className="text-red-600 text-xs">{(addBlock.error as any)?.response?.data?.message ?? 'Hata oluştu.'}</p>
+                    <p className="text-red-600 text-xs">{(addBlock.error as any)?.response?.data?.message ?? t('common.errorOccurred')}</p>
                   )}
                 </div>
               )}
 
-              {/* Liste */}
+              {/* List */}
               {blocks.length === 0 ? (
                 <div className="flex flex-col items-center py-10 gap-2 text-gray-400">
                   <Ban className="w-8 h-8 text-gray-200" />
-                  <p className="text-sm">Blok zaman eklenmemiş.</p>
+                  <p className="text-sm">{t('staff.noBlocks')}</p>
                 </div>
               ) : (
                 <ul className="divide-y divide-gray-100">

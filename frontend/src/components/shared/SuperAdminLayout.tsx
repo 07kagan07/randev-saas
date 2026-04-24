@@ -1,24 +1,26 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { LayoutDashboard, Building2, LifeBuoy, Layers, LogOut, Menu } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/auth.store';
 
-const nav = [
-  { to: '/superadmin',             label: 'Dashboard',         icon: LayoutDashboard, end: true },
-  { to: '/superadmin/businesses',  label: 'İşletmeler',        icon: Building2 },
-  { to: '/superadmin/tickets',        label: 'Destek Talepleri',  icon: LifeBuoy },
-  { to: '/superadmin/business-types', label: 'İşletme Tipleri',   icon: Layers },
-];
-
 export default function SuperAdminLayout() {
+  const { t } = useTranslation();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const nav = [
+    { to: '/superadmin',             label: t('nav.dashboard'),     icon: LayoutDashboard, end: true },
+    { to: '/superadmin/businesses',  label: t('nav.businesses'),    icon: Building2 },
+    { to: '/superadmin/tickets',     label: t('nav.tickets'),       icon: LifeBuoy },
+    { to: '/superadmin/business-types', label: t('nav.businessTypes'), icon: Layers },
+  ];
+
   const pageTitle = nav.find(item =>
     item.end ? location.pathname === item.to : location.pathname.startsWith(item.to)
-  )?.label ?? 'Panel';
+  )?.label ?? t('nav.panel');
 
   const handleLogout = async () => {
     await logout();
@@ -27,12 +29,10 @@ export default function SuperAdminLayout() {
 
   return (
     <div className="flex h-[100dvh] bg-gray-100 overflow-hidden">
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-20 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 z-30 w-60 bg-gray-900 text-white flex flex-col transform transition-transform lg:translate-x-0 lg:static lg:z-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-5 border-b border-gray-700">
           <div className="flex items-center gap-3">
@@ -65,7 +65,7 @@ export default function SuperAdminLayout() {
 
         <div className="p-3 border-t border-gray-700">
           <div className="px-3 py-2 mb-1">
-            <p className="text-xs text-gray-400">Giriş yapan</p>
+            <p className="text-xs text-gray-400">{t('auth.login')}</p>
             <p className="text-sm text-white truncate">{user?.full_name || user?.phone}</p>
           </div>
           <button
@@ -73,24 +73,18 @@ export default function SuperAdminLayout() {
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
           >
             <LogOut className="w-4 h-4 shrink-0" />
-            <span>Çıkış Yap</span>
+            <span>{t('auth.logout')}</span>
           </button>
         </div>
       </aside>
 
-      {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Topbar */}
         <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 lg:hidden"
-          >
+          <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 lg:hidden">
             <Menu className="w-5 h-5" />
           </button>
           <span className="font-semibold text-gray-800">{pageTitle}</span>
         </header>
-
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>

@@ -10,12 +10,15 @@ import { Service } from '../database/entities/service.entity';
 import { User } from '../database/entities/user.entity';
 import { StaffService as StaffServiceEntity } from '../database/entities/staff-service.entity';
 
+export type SlotUnavailableReason = 'past' | 'booked' | 'blocked';
+
 export interface TimeSlot {
   start_local: string;
   end_local: string;
   start_utc: string;
   end_utc: string;
   available: boolean;
+  reason?: SlotUnavailableReason; // available=false ise neden
   staff_id: string;
   staff_name?: string;
 }
@@ -196,32 +199,42 @@ export class AvailabilityService {
     // Slotları üret
     const slots: TimeSlot[] = [];
     let current = workStart;
+    const now = DateTime.utc();
 
     while (current.plus({ minutes: durationMinutes }) <= workEnd) {
       const slotEnd = current.plus({ minutes: durationMinutes });
       const slotStartUtc = current.toUTC();
       const slotEndUtc = slotEnd.toUTC();
 
-      // Çakışma kontrolü — bloklu periyotlar
-      const blockedConflict = blockedPeriods.some((bp) => {
-        const bpStart = DateTime.fromJSDate(bp.start_at);
-        const bpEnd = DateTime.fromJSDate(bp.end_at);
+      // Tüm karşılaştırmalar UTC'de — server saati yetkili, client saatine güvenilmez
+      const isPast           = slotStartUtc < now;
+      const blockedConflict  = !isPast && blockedPeriods.some((bp) => {
+        const bpStart = DateTime.fromJSDate(bp.start_at).toUTC();
+        const bpEnd   = DateTime.fromJSDate(bp.end_at).toUTC();
         return slotStartUtc < bpEnd && slotEndUtc > bpStart;
       });
-
-      // Çakışma kontrolü — mevcut randevular
-      const appointmentConflict = appointments.some((appt) => {
-        const apptStart = DateTime.fromJSDate(appt.start_at);
-        const apptEnd = DateTime.fromJSDate(appt.end_at);
+      const bookedConflict   = !isPast && !blockedConflict && appointments.some((appt) => {
+        const apptStart = DateTime.fromJSDate(appt.start_at).toUTC();
+        const apptEnd   = DateTime.fromJSDate(appt.end_at).toUTC();
         return slotStartUtc < apptEnd && slotEndUtc > apptStart;
       });
+
+      const available = !isPast && !blockedConflict && !bookedConflict;
+      const reason: SlotUnavailableReason | undefined = isPast
+        ? 'past'
+        : blockedConflict
+        ? 'blocked'
+        : bookedConflict
+        ? 'booked'
+        : undefined;
 
       slots.push({
         start_local: current.toFormat('HH:mm'),
         end_local: slotEnd.toFormat('HH:mm'),
         start_utc: slotStartUtc.toISO()!,
         end_utc: slotEndUtc.toISO()!,
-        available: !blockedConflict && !appointmentConflict,
+        available,
+        reason,
         staff_id: staff.id,
         staff_name: staff.full_name || undefined,
       });
