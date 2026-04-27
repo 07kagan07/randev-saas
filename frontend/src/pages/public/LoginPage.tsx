@@ -56,7 +56,7 @@ export default function LoginPage() {
       if (role === 'super_admin') navigate('/superadmin');
       else if (role === 'business_admin') {
         const ob = useAuthStore.getState().user?.onboarding_completed;
-        navigate(ob === false ? '/admin/onboarding' : '/admin');
+        navigate(ob === false ? '/admin/onboarding' : '/admin/appointments');
       }
       else if (role === 'staff') navigate('/staff/appointments');
       else navigate('/');

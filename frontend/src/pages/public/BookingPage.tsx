@@ -2,7 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, CheckCircle, Clock, Calendar, User, ClipboardList } from 'lucide-react';
+import { ChevronLeft, CheckCircle, Clock, Calendar, User, ClipboardList, Phone, Navigation } from 'lucide-react';
+import DirectionsModal, { openDirections } from '../../components/shared/DirectionsModal';
 import api from '../../services/api';
 import { useBusinessSocket } from '../../hooks/useBusinessSocket';
 import PhoneInput from '../../components/shared/PhoneInput';
@@ -115,6 +116,7 @@ export default function BookingPage() {
   const { slug } = useParams<{ slug: string }>();
 
   const [step, setStep] = useState<Step>('service');
+  const [directionsOpen, setDirectionsOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<any>(null);
   const [selectedStaff, setSelectedStaff] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState(() => localDateStr(new Date()));
@@ -233,13 +235,13 @@ export default function BookingPage() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
         {step === 'service' ? (
-          <Link to={`/${slug}`} className="text-gray-400 hover:text-gray-600"><ChevronLeft className="w-5 h-5" /></Link>
+          <Link to={`/${slug}`} className="flex items-center text-gray-400 hover:text-gray-600"><ChevronLeft className="w-5 h-5" /></Link>
         ) : (
           <button onClick={() => {
             if (step === 'staff') setStep('service');
             else if (step === 'slot') setStep('staff');
             else if (step === 'form') setStep('slot');
-          }} className="text-gray-400 hover:text-gray-600">
+          }} className="flex items-center text-gray-400 hover:text-gray-600">
             <ChevronLeft className="w-5 h-5" />
           </button>
         )}
@@ -271,7 +273,7 @@ export default function BookingPage() {
                             <p className="font-medium text-gray-900 text-sm">{s.name}</p>
                             <p className="text-xs text-gray-400 mt-0.5">{s.duration_minutes} {t('common.minutes')}</p>
                           </div>
-                          {s.show_price && s.price != null && (
+                          {biz?.show_prices && s.show_price && s.price != null && (
                             <p className="text-sm font-semibold text-indigo-600 shrink-0 ml-4">
                               {Number(s.price).toLocaleString()} ₺
                             </p>
@@ -406,7 +408,7 @@ export default function BookingPage() {
                   {selectedSlot && fmtSlot(selectedSlot)}
                 </span>
               </div>
-              {selectedService?.show_price && selectedService?.price && (
+              {biz?.show_prices && selectedService?.show_price && selectedService?.price && (
                 <div className="flex justify-between border-t border-indigo-100 pt-1.5 mt-1.5">
                   <span className="text-indigo-400">{t('booking.feeLabel')}</span>
                   <span className="font-semibold text-indigo-700">{Number(selectedService.price).toLocaleString()} ₺</span>
@@ -527,6 +529,38 @@ export default function BookingPage() {
                   </div>
                 ))}
               </div>
+            )}
+
+            {/* Contact buttons */}
+            {(biz?.phone || biz?.maps_url || biz?.apple_maps_url) && (
+              <div className="flex gap-3 mb-4">
+                {biz.phone && (
+                  <a
+                    href={`tel:${biz.phone}`}
+                    className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors text-sm"
+                  >
+                    <Phone className="w-4 h-4 text-indigo-500" />
+                    {t('storefront.call')}
+                  </a>
+                )}
+                {(biz.maps_url || biz.apple_maps_url) && (
+                  <button
+                    onClick={() => { if (!openDirections(biz.maps_url, biz.apple_maps_url)) setDirectionsOpen(true); }}
+                    className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium py-3 px-4 rounded-xl transition-colors text-sm"
+                  >
+                    <Navigation className="w-4 h-4 text-indigo-500" />
+                    {t('storefront.getDirections')}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {directionsOpen && (
+              <DirectionsModal
+                googleMapsUrl={biz?.maps_url}
+                appleMapsUrl={biz?.apple_maps_url}
+                onClose={() => setDirectionsOpen(false)}
+              />
             )}
 
             <Link to={`/${slug}`}

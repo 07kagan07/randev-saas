@@ -13,7 +13,7 @@ export default function AdminSettingsPage() {
   const qc = useQueryClient();
 
   const [form, setForm] = useState({
-    name: '', phone: '', address: '', description: '', slot_interval_minutes: 30,
+    name: '', phone: '', address: '', description: '', slot_interval_minutes: 30, maps_url: '', apple_maps_url: '', show_prices: false,
   });
   const [slug, setSlug] = useState('');
   const [notif, setNotif] = useState({
@@ -41,7 +41,7 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     const b = bizData?.data;
     if (b) {
-      setForm({ name: b.name ?? '', phone: b.phone ?? '', address: b.address ?? '', description: b.description ?? '', slot_interval_minutes: b.slot_interval_minutes ?? 30 });
+      setForm({ name: b.name ?? '', phone: b.phone ?? '', address: b.address ?? '', description: b.description ?? '', slot_interval_minutes: b.slot_interval_minutes ?? 30, maps_url: b.maps_url ?? '', apple_maps_url: b.apple_maps_url ?? '', show_prices: b.show_prices ?? false });
       setSlug(b.slug ?? '');
     }
   }, [bizData]);
@@ -130,6 +130,20 @@ export default function AdminSettingsPage() {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
           </div>
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings.mapsUrl')}</label>
+            <input value={form.maps_url} onChange={e => setForm(f => ({ ...f, maps_url: e.target.value }))}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="https://maps.app.goo.gl/..." />
+            <p className="text-xs text-gray-400 mt-1">{t('settings.mapsUrlHelp')}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings.appleMapsUrl')}</label>
+            <input value={form.apple_maps_url} onChange={e => setForm(f => ({ ...f, apple_maps_url: e.target.value }))}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="https://maps.apple.com/place?..." />
+            <p className="text-xs text-gray-400 mt-1">{t('settings.appleMapsUrlHelp')}</p>
+          </div>
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings.slotInterval')}</label>
             <select value={form.slot_interval_minutes}
               onChange={e => setForm(f => ({ ...f, slot_interval_minutes: Number(e.target.value) }))}
@@ -139,6 +153,23 @@ export default function AdminSettingsPage() {
               ))}
             </select>
           </div>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-gray-700">{t('settings.showPrices')}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t('settings.showPricesHelp')}</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 mt-0.5">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={form.show_prices}
+                onChange={e => setForm(f => ({ ...f, show_prices: e.target.checked }))}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-indigo-500 rounded-full peer peer-checked:bg-indigo-600 transition-colors" />
+              <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
+            </label>
+          </div>
+
           <button onClick={() => saveBiz.mutate()} disabled={saveBiz.isPending}
             className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-sm font-medium px-5 py-2.5 rounded-lg">
             {saved ? t('common.saved') : saveBiz.isPending ? t('common.saving') : t('common.save')}

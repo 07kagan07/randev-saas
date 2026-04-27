@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Calendar, Users, Scissors, TrendingUp, Settings, LogOut, Menu, Clock, Briefcase, UserCheck } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Scissors, TrendingUp, Settings, LogOut, Menu, Clock, CalendarDays } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/auth.store';
-import { useAdminMode, setAdminMode } from '../../hooks/useAdminMode';
-
-const STAFF_NAV_PATHS = ['/admin/appointments', '/admin/my-schedule'];
+import LanguageSwitcher from './LanguageSwitcher';
+import BottomNav from './BottomNav';
 
 export default function AdminLayout() {
   const { t } = useTranslation();
@@ -13,7 +12,6 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const mode = useAdminMode();
 
   const staffNav = [
     { to: '/admin/appointments', label: t('nav.appointments'), icon: Calendar },
@@ -21,18 +19,17 @@ export default function AdminLayout() {
   ];
 
   const adminNav = [
-    { to: '/admin',              label: t('nav.dashboard'),    icon: LayoutDashboard, end: true },
-    { to: '/admin/appointments', label: t('nav.appointments'), icon: Calendar },
-    { to: '/admin/my-schedule',  label: t('nav.mySchedule'),   icon: Clock },
-    { to: '/admin/staff',        label: t('nav.staff'),        icon: Users },
-    { to: '/admin/services',     label: t('nav.services'),     icon: Scissors },
-    { to: '/admin/reports',      label: t('nav.reports'),      icon: TrendingUp },
-    { to: '/admin/settings',     label: t('nav.settings'),     icon: Settings },
+    { to: '/admin/dashboard',         label: t('nav.dashboard'),        icon: LayoutDashboard },
+    { to: '/admin/all-appointments',  label: t('nav.allAppointments'),  icon: CalendarDays },
+    { to: '/admin/staff',             label: t('nav.staff'),            icon: Users },
+    { to: '/admin/services',  label: t('nav.services'),  icon: Scissors },
+    { to: '/admin/reports',   label: t('nav.reports'),   icon: TrendingUp },
+    { to: '/admin/settings',  label: t('nav.settings'),  icon: Settings },
   ];
 
-  const nav = mode === 'staff' ? staffNav : adminNav;
+  const allNav = [...staffNav, ...adminNav];
 
-  const pageTitle = nav.find(item =>
+  const pageTitle = allNav.find(item =>
     (item as any).end ? location.pathname === item.to : location.pathname.startsWith(item.to)
   )?.label ?? t('nav.panel');
 
@@ -41,90 +38,66 @@ export default function AdminLayout() {
     navigate('/login');
   };
 
-  const switchMode = (next: 'staff' | 'admin') => {
-    setAdminMode(next);
-    setSidebarOpen(false);
-    if (next === 'staff' && !STAFF_NAV_PATHS.some(p => location.pathname.startsWith(p))) {
-      navigate('/admin/appointments');
-    }
-  };
+  const bottomNavItems: [any, any] = [
+    { to: '/admin/appointments', icon: Calendar, label: t('nav.appointments'), queryKeyPrefix: 'admin-day-appts' },
+    { to: '/admin/my-schedule',  icon: Clock,    label: t('nav.mySchedule'),   queryKeyPrefix: 'admin-my-hours' },
+  ];
 
-  const isStaff = mode === 'staff';
-  const bgClass   = isStaff ? 'bg-emerald-900' : 'bg-indigo-900';
-  const bdClass   = isStaff ? 'border-emerald-800' : 'border-indigo-800';
-  const subLabel  = isStaff ? t('nav.staffPanel') : t('nav.adminPanel');
-  const subColor  = isStaff ? 'text-emerald-300' : 'text-indigo-300';
-  const mutedText = isStaff ? 'text-emerald-200' : 'text-indigo-200';
-  const hoverBg   = 'hover:bg-white/10 hover:text-white';
+  const NavItem = ({ item }: { item: typeof staffNav[0] }) => (
+    <NavLink
+      key={item.to}
+      to={item.to}
+      end={(item as any).end}
+      onClick={() => setSidebarOpen(false)}
+      className={({ isActive }) =>
+        `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+          isActive ? 'bg-white/20 text-white' : 'text-indigo-200 hover:bg-white/10 hover:text-white'
+        }`
+      }
+    >
+      <item.icon className="w-4 h-4 shrink-0" />
+      <span>{item.label}</span>
+    </NavLink>
+  );
 
   return (
     <div className="flex h-[100dvh] bg-gray-100 overflow-hidden">
       {sidebarOpen && (
-        <div className="fixed inset-0 z-20 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 z-[48] bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <aside className={`fixed inset-y-0 left-0 z-30 w-60 ${bgClass} text-white flex flex-col transform transition-transform lg:translate-x-0 lg:static lg:z-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className={`p-4 border-b ${bdClass}`}>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-sm font-bold shrink-0">
-              {isStaff ? 'P' : 'R'}
-            </div>
+      <aside className={`fixed inset-y-0 left-0 z-[49] w-60 bg-indigo-900 text-white flex flex-col transform transition-transform lg:translate-x-0 lg:static lg:z-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-5 border-b border-indigo-800">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-sm font-bold shrink-0">R</div>
             <div className="min-w-0">
               <p className="font-semibold text-sm truncate">{user?.full_name || t('nav.panel')}</p>
-              <p className={`text-xs ${subColor}`}>{subLabel}</p>
+              <p className="text-xs text-indigo-300">{t('nav.adminPanel')}</p>
             </div>
-          </div>
-
-          {/* Mode switcher */}
-          <div className="flex rounded-lg overflow-hidden border border-white/20 text-xs font-medium">
-            <button
-              onClick={() => switchMode('staff')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 transition-colors ${
-                isStaff ? 'bg-white/25 text-white' : `${mutedText} ${hoverBg}`
-              }`}
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              {t('nav.staffMode')}
-            </button>
-            <button
-              onClick={() => switchMode('admin')}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 transition-colors ${
-                !isStaff ? 'bg-white/25 text-white' : `${mutedText} ${hoverBg}`
-              }`}
-            >
-              <Briefcase className="w-3.5 h-3.5" />
-              {t('nav.adminMode')}
-            </button>
           </div>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
-          {nav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={(item as any).end}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  isActive ? 'bg-white/20 text-white' : `${mutedText} ${hoverBg}`
-                }`
-              }
-            >
-              <item.icon className="w-4 h-4 shrink-0" />
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+          {staffNav.map(item => <NavItem key={item.to} item={item} />)}
+
+          <div className="pt-3 pb-1">
+            <p className="px-3 text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">{t('nav.adminSection')}</p>
+          </div>
+
+          {adminNav.map(item => <NavItem key={item.to} item={item} />)}
         </nav>
 
-        <div className={`p-3 border-t ${bdClass}`}>
-          <button
-            onClick={handleLogout}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${mutedText} ${hoverBg} transition-colors`}
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            <span>{t('auth.logout')}</span>
-          </button>
+        <div className="pt-2 border-t border-indigo-800">
+          <LanguageSwitcher variant="sidebar" mutedTextClass="text-indigo-200" hoverBgClass="hover:bg-white/10 hover:text-white" />
+          <div className="px-3 pb-3">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-indigo-200 hover:bg-white/10 hover:text-white transition-colors"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              <span>{t('auth.logout')}</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -135,10 +108,12 @@ export default function AdminLayout() {
           </button>
           <span className="font-semibold text-gray-800">{pageTitle}</span>
         </header>
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 lg:pb-6 pb-24">
           <Outlet />
         </main>
       </div>
+
+      <BottomNav items={bottomNavItems} isAdmin={true} />
     </div>
   );
 }

@@ -203,8 +203,30 @@
     "cancel": "Stornieren",
     "cancelTitle": "Termin stornieren",
     "cancelConfirm": "Sind Sie sicher, dass Sie diesen Termin stornieren möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "completeTitle": "Termin abschließen",
+    "completeConfirm": "Möchten Sie diesen Termin als abgeschlossen markieren?",
+    "noShowTitle": "Als nicht erschienen markieren",
+    "noShowConfirm": "Der Kunde wird als nicht erschienen markiert. Bestätigen?",
     "rejectionReason": "Ablehnungsgrund",
-    "total": "Gesamt {{count}} Termine"
+    "total": "Gesamt {{count}} Termine",
+    "addWalkIn": "+ Termin hinzufügen",
+    "walkInTitle": "Termin erstellen",
+    "walkInSubtitle": "Für Telefon- oder Walk-in-Kunden",
+    "selectService": "Dienstleistung wählen...",
+    "selectStaff": "Mitarbeiter wählen...",
+    "customerName": "Kundenname",
+    "customerNamePlaceholder": "Vor- und Nachname",
+    "customerPhone": "Kundentelefon",
+    "walkInNotes": "Notiz",
+    "walkInNotesPlaceholder": "Optionale Notiz...",
+    "selectDate": "Datum wählen",
+    "selectTime": "Uhrzeit wählen",
+    "availableSlots": "Verfügbare Zeiten",
+    "noSlots": "Keine verfügbaren Zeiten an diesem Datum.",
+    "manualTime": "Andere Uhrzeit eingeben",
+    "createAppointment": "Termin erstellen",
+    "creating": "Wird erstellt...",
+    "createSuccess": "Termin erfolgreich erstellt"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -220,6 +242,8 @@
     "staffPanel": "Mitarbeiteransicht",
     "staffMode": "Mitarbeiter",
     "adminMode": "Admin",
+    "adminSection": "Verwaltung",
+    "allAppointments": "Alle Termine",
     "businesses": "Unternehmen",
     "tickets": "Support-Tickets",
     "businessTypes": "Unternehmenstypen"
@@ -366,6 +390,12 @@
     "smsOnCancel": "SMS — Stornierung/Ablehnung",
     "smsReminder": "SMS — Erinnerung",
     "slotInterval": "Slot-Intervall (Minuten)",
+    "showPrices": "Preise für Kunden anzeigen",
+    "showPricesHelp": "Wenn deaktiviert, werden Servicepreise auf der Buchungsseite nicht angezeigt.",
+    "mapsUrl": "Google Maps Link",
+    "mapsUrlHelp": "Öffnen Sie Ihr Unternehmen in Google Maps → Teilen → Link kopieren. Fügen Sie ihn hier ein.",
+    "appleMapsUrl": "Apple Maps Link",
+    "appleMapsUrlHelp": "Öffnen Sie Ihr Unternehmen in Apple Karten → Teilen → Link kopieren. Fügen Sie ihn hier ein.",
     "qrCode": "QR-Code",
     "downloadQr": "↓ QR-Code herunterladen (PNG)",
     "support": "Support-Anfrage",
@@ -426,7 +456,13 @@
   "storefront": {
     "notFound": "Unternehmen nicht gefunden.",
     "notFoundDesc": "Diese Adresse ist ungültig oder das Unternehmen wurde entfernt.",
-    "bookAppointment": "Termin buchen"
+    "bookAppointment": "Termin buchen",
+    "call": "Anrufen",
+    "getDirections": "Route planen",
+    "directionsTitle": "Route planen",
+    "googleMaps": "Google Maps",
+    "appleMaps": "Apple Karten",
+    "workingHours": "Öffnungszeiten"
   },
   "superadmin": {
     "businesses": {

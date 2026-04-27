@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Phone, ChevronDown, Check, X, UserX, AlertTriangle } from 'lucide-react';
+import { Phone, ChevronDown, Check, X, UserX, AlertTriangle, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { fmtTime, fmtNumber } from '../../utils/locale';
 
@@ -24,28 +24,35 @@ interface Props {
   actions?: 'staff' | 'admin';
   onAction: (id: string, act: string) => void;
   isPending?: boolean;
+  showStaff?: boolean;
 }
 
-function CancelModal({ onConfirm, onClose }: { onConfirm: () => void; onClose: () => void }) {
+function ConfirmModal({
+  iconBg, iconColor, icon: Icon, title, body, confirmLabel, confirmClass, onConfirm, onClose,
+}: {
+  iconBg: string; iconColor: string; icon: React.ElementType;
+  title: string; body: string; confirmLabel: string; confirmClass: string;
+  onConfirm: () => void; onClose: () => void;
+}) {
   const { t } = useTranslation();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
         <div className="flex flex-col items-center text-center">
-          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-            <AlertTriangle className="w-6 h-6 text-red-500" />
+          <div className={`w-12 h-12 ${iconBg} rounded-full flex items-center justify-center mb-4`}>
+            <Icon className={`w-6 h-6 ${iconColor}`} />
           </div>
-          <h3 className="font-semibold text-gray-900 text-lg mb-1">{t('appointments.cancelTitle')}</h3>
-          <p className="text-sm text-gray-500 mb-6">{t('appointments.cancelConfirm')}</p>
+          <h3 className="font-semibold text-gray-900 text-lg mb-1">{title}</h3>
+          <p className="text-sm text-gray-500 mb-6">{body}</p>
           <div className="flex gap-3 w-full">
             <button onClick={onClose}
               className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
               {t('common.dismiss')}
             </button>
             <button onClick={onConfirm}
-              className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 rounded-xl text-sm font-medium text-white transition-colors">
-              {t('appointments.cancel')}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition-colors ${confirmClass}`}>
+              {confirmLabel}
             </button>
           </div>
         </div>
@@ -54,10 +61,12 @@ function CancelModal({ onConfirm, onClose }: { onConfirm: () => void; onClose: (
   );
 }
 
-export default function ApptCard({ appt: a, actions = 'staff', onAction, isPending }: Props) {
+export default function ApptCard({ appt: a, actions = 'staff', onAction, isPending, showStaff }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const [cancelConfirm, setCancelConfirm] = useState(false);
+  const [cancelConfirm, setCancelConfirm]   = useState(false);
+  const [completeConfirm, setCompleteConfirm] = useState(false);
+  const [noShowConfirm, setNoShowConfirm]     = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const detailRef = useRef<HTMLDivElement>(null);
 
@@ -81,9 +90,30 @@ export default function ApptCard({ appt: a, actions = 'staff', onAction, isPendi
   return (
     <>
     {cancelConfirm && (
-      <CancelModal
+      <ConfirmModal
+        iconBg="bg-red-100" iconColor="text-red-500" icon={AlertTriangle}
+        title={t('appointments.cancelTitle')} body={t('appointments.cancelConfirm')}
+        confirmLabel={t('appointments.cancel')} confirmClass="bg-red-500 hover:bg-red-600"
         onClose={() => setCancelConfirm(false)}
         onConfirm={() => { setCancelConfirm(false); onAction(a.id, 'cancel'); }}
+      />
+    )}
+    {completeConfirm && (
+      <ConfirmModal
+        iconBg="bg-green-100" iconColor="text-green-600" icon={Check}
+        title={t('appointments.completeTitle')} body={t('appointments.completeConfirm')}
+        confirmLabel={t('appointments.complete')} confirmClass="bg-green-600 hover:bg-green-700"
+        onClose={() => setCompleteConfirm(false)}
+        onConfirm={() => { setCompleteConfirm(false); onAction(a.id, 'complete'); }}
+      />
+    )}
+    {noShowConfirm && (
+      <ConfirmModal
+        iconBg="bg-orange-100" iconColor="text-orange-500" icon={UserX}
+        title={t('appointments.noShowTitle')} body={t('appointments.noShowConfirm')}
+        confirmLabel={t('appointments.noShow')} confirmClass="bg-orange-500 hover:bg-orange-600"
+        onClose={() => setNoShowConfirm(false)}
+        onConfirm={() => { setNoShowConfirm(false); onAction(a.id, 'no-show'); }}
       />
     )}
     <div ref={ref} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
@@ -99,6 +129,12 @@ export default function ApptCard({ appt: a, actions = 'staff', onAction, isPendi
             <Phone className="w-3 h-3" />
             {a.customer_phone}
           </p>
+          {showStaff && a.staff?.full_name && (
+            <p className="text-xs text-indigo-500 mt-0.5 flex items-center gap-1">
+              <User className="w-3 h-3" />
+              {a.staff.full_name}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
@@ -131,12 +167,12 @@ export default function ApptCard({ appt: a, actions = 'staff', onAction, isPendi
           )}
           {showStaffActions && (
             <>
-              <button onClick={() => onAction(a.id, 'complete')} disabled={isPending}
+              <button onClick={() => setCompleteConfirm(true)} disabled={isPending}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-xl text-sm font-medium transition-colors disabled:opacity-50">
                 <Check className="w-4 h-4" />
                 {t('appointments.complete')}
               </button>
-              <button onClick={() => onAction(a.id, 'no-show')} disabled={isPending}
+              <button onClick={() => setNoShowConfirm(true)} disabled={isPending}
                 className="w-12 flex items-center justify-center py-2.5 bg-orange-50 hover:bg-orange-100 text-orange-500 rounded-xl transition-colors disabled:opacity-50">
                 <UserX className="w-4 h-4" />
               </button>
@@ -163,7 +199,6 @@ export default function ApptCard({ appt: a, actions = 'staff', onAction, isPendi
             <a href={`tel:${a.customer_phone}`}
               className="flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
               <Phone className="w-3.5 h-3.5" />
-              📞
             </a>
           </div>
 

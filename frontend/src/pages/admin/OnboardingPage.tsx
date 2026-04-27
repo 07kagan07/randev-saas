@@ -1042,7 +1042,7 @@ export default function OnboardingPage() {
       }));
     }
     qc.invalidateQueries();
-    navigate('/admin');
+    navigate('/admin/appointments');
   };
 
   const nextFor = (stepNum: number) => isResuming ? () => completeSkipped(stepNum) : advance;

@@ -150,6 +150,101 @@ export class AppointmentsService {
     });
   }
 
+  // ─── Randevu Oluştur (Staff/Admin — throttle yok, her zaman APPROVED) ────────
+
+  async createInternal(dto: CreateAppointmentDto, actor: User): Promise<Appointment> {
+    await this.planLimitService.checkMonthlyAppointmentLimit(dto.business_id);
+
+    if (actor.business_id !== dto.business_id) {
+      throw new ForbiddenException({ code: 'FORBIDDEN', message: 'Bu işletmeye erişim yetkiniz yok.' });
+    }
+
+    const [business, service] = await Promise.all([
+      this.businessRepo.findOne({ where: { id: dto.business_id, is_active: true } }),
+      this.serviceRepo.findOne({
+        where: { id: dto.service_id, business_id: dto.business_id, is_active: true },
+      }),
+    ]);
+
+    if (!business) throw new NotFoundException({ code: 'BUSINESS_NOT_FOUND', message: 'İşletme bulunamadı.' });
+    if (!service) throw new NotFoundException({ code: 'SERVICE_NOT_FOUND', message: 'Hizmet bulunamadı.' });
+
+    const startAt = new Date(dto.start_at);
+    const endAt = new Date(startAt.getTime() + service.duration_minutes * 60 * 1000);
+
+    let resolvedStaffId: string;
+    if (dto.staff_id) {
+      const found = await this.userRepo.findOne({
+        where: { id: dto.staff_id, business_id: dto.business_id, is_active: true },
+      });
+      if (!found) throw new NotFoundException({ code: 'STAFF_NOT_FOUND', message: 'Personel bulunamadı.' });
+      resolvedStaffId = dto.staff_id;
+    } else {
+      resolvedStaffId = await this.autoAssignStaff(dto.business_id, dto.service_id, startAt, endAt);
+    }
+
+    const staff = await this.userRepo.findOne({ where: { id: resolvedStaffId } });
+    if (!staff) throw new NotFoundException({ code: 'STAFF_NOT_FOUND', message: 'Personel bulunamadı.' });
+
+    return this.dataSource.transaction(async (manager) => {
+      const lockKey = this.hashLock(resolvedStaffId + dto.start_at);
+      await manager.query(`SELECT pg_advisory_xact_lock($1)`, [lockKey]);
+
+      const conflict = await manager.findOne(Appointment, {
+        where: {
+          staff_id: resolvedStaffId,
+          start_at: startAt,
+          status: Not(In([AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED])),
+        },
+      });
+
+      if (conflict) {
+        throw new ConflictException({
+          code: 'SLOT_NOT_AVAILABLE',
+          message: 'Bu saat dilimi dolu, lütfen başka bir saat seçin.',
+          message_en: 'This time slot is already taken. Please select another time.',
+        });
+      }
+
+      const actionToken = uuidv4();
+      const tokenExpiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+      const appointment = manager.create(Appointment, {
+        business_id: dto.business_id,
+        staff_id: resolvedStaffId,
+        service_id: dto.service_id,
+        customer_name: dto.customer_name,
+        customer_phone: dto.customer_phone,
+        start_at: startAt,
+        end_at: endAt,
+        status: AppointmentStatus.APPROVED,
+        notes: dto.notes,
+        extra_fields: dto.extra_fields ?? {},
+        action_token: actionToken,
+        action_token_expires_at: tokenExpiresAt,
+      });
+
+      const saved = await manager.save(Appointment, appointment);
+
+      await manager.save(AppointmentLog, {
+        appointment_id: saved.id,
+        changed_by: actor.id,
+        from_status: null,
+        to_status: AppointmentStatus.APPROVED,
+        note: 'Personel tarafından oluşturuldu',
+      });
+
+      setImmediate(() => this.scheduleNotifications(saved, business, service, staff));
+      setImmediate(() => this.eventsGateway.broadcastNewAppointment(business.id, {
+        ...saved,
+        service: { id: service.id, name: service.name, duration_minutes: service.duration_minutes, price: service.price },
+        staff: staff ? { id: staff.id, full_name: staff.full_name } : null,
+      }));
+
+      return saved;
+    });
+  }
+
   // Verilen slot için bu hizmeti yapabilen, o slotta müsait, en az randevusu olan personeli seç
   private async autoAssignStaff(
     businessId: string,

@@ -203,8 +203,30 @@
     "cancel": "Cancel",
     "cancelTitle": "Cancel Appointment",
     "cancelConfirm": "Are you sure you want to cancel this appointment? This action cannot be undone.",
+    "completeTitle": "Complete Appointment",
+    "completeConfirm": "Are you sure you want to mark this appointment as completed?",
+    "noShowTitle": "Mark as No-Show",
+    "noShowConfirm": "The customer will be marked as no-show. Are you sure?",
     "rejectionReason": "Rejection Reason",
-    "total": "Total {{count}} appointments"
+    "total": "Total {{count}} appointments",
+    "addWalkIn": "+ Add Appointment",
+    "walkInTitle": "Create Appointment",
+    "walkInSubtitle": "For phone or walk-in customer",
+    "selectService": "Select a service...",
+    "selectStaff": "Select staff...",
+    "customerName": "Customer Name",
+    "customerNamePlaceholder": "Full Name",
+    "customerPhone": "Customer Phone",
+    "walkInNotes": "Notes",
+    "walkInNotesPlaceholder": "Optional note...",
+    "selectDate": "Select Date",
+    "selectTime": "Select Time",
+    "availableSlots": "Available Slots",
+    "noSlots": "No available slots on this date.",
+    "manualTime": "Enter custom time",
+    "createAppointment": "Create Appointment",
+    "creating": "Creating...",
+    "createSuccess": "Appointment created successfully"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -220,6 +242,8 @@
     "staffPanel": "Staff View",
     "staffMode": "Staff",
     "adminMode": "Admin",
+    "adminSection": "Admin",
+    "allAppointments": "All Appointments",
     "businesses": "Businesses",
     "tickets": "Support Tickets",
     "businessTypes": "Business Types"
@@ -366,6 +390,12 @@
     "smsOnCancel": "SMS — cancellation/rejection",
     "smsReminder": "SMS — reminder",
     "slotInterval": "Slot Interval (minutes)",
+    "showPrices": "Show prices to customers",
+    "showPricesHelp": "When off, service prices are not displayed to customers on the booking page.",
+    "mapsUrl": "Google Maps Link",
+    "mapsUrlHelp": "Open your business on Google Maps → Share → Copy link. Paste it here.",
+    "appleMapsUrl": "Apple Maps Link",
+    "appleMapsUrlHelp": "Open your business on Apple Maps → Share → Copy link. Paste it here.",
     "qrCode": "QR Code",
     "downloadQr": "↓ Download QR Code (PNG)",
     "support": "Support Ticket",
@@ -426,7 +456,13 @@
   "storefront": {
     "notFound": "Business not found.",
     "notFoundDesc": "This address is invalid or the business has been removed.",
-    "bookAppointment": "Book Appointment"
+    "bookAppointment": "Book Appointment",
+    "workingHours": "Working Hours",
+    "call": "Call",
+    "getDirections": "Get Directions",
+    "directionsTitle": "Get Directions",
+    "googleMaps": "Google Maps",
+    "appleMaps": "Apple Maps"
   },
   "superadmin": {
     "businesses": {

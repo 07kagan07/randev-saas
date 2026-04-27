@@ -203,8 +203,30 @@
     "cancel": "Отменить",
     "cancelTitle": "Отменить запись",
     "cancelConfirm": "Вы уверены, что хотите отменить эту запись? Это действие нельзя отменить.",
+    "completeTitle": "Завершить запись",
+    "completeConfirm": "Вы уверены, что хотите отметить эту запись как завершённую?",
+    "noShowTitle": "Отметить как неявку",
+    "noShowConfirm": "Клиент будет отмечен как не явившийся. Подтвердить?",
     "rejectionReason": "Причина отказа",
-    "total": "Всего {{count}} записей"
+    "total": "Всего {{count}} записей",
+    "addWalkIn": "+ Добавить запись",
+    "walkInTitle": "Создать запись",
+    "walkInSubtitle": "Для клиента по телефону или без записи",
+    "selectService": "Выберите услугу...",
+    "selectStaff": "Выберите сотрудника...",
+    "customerName": "Имя клиента",
+    "customerNamePlaceholder": "Имя Фамилия",
+    "customerPhone": "Телефон клиента",
+    "walkInNotes": "Заметка",
+    "walkInNotesPlaceholder": "Необязательная заметка...",
+    "selectDate": "Выберите дату",
+    "selectTime": "Выберите время",
+    "availableSlots": "Доступное время",
+    "noSlots": "Нет доступного времени на эту дату.",
+    "manualTime": "Ввести другое время",
+    "createAppointment": "Создать запись",
+    "creating": "Создание...",
+    "createSuccess": "Запись успешно создана"
   },
   "nav": {
     "dashboard": "Панель",
@@ -220,6 +242,8 @@
     "staffPanel": "Вид сотрудника",
     "staffMode": "Сотрудник",
     "adminMode": "Администратор",
+    "adminSection": "Управление",
+    "allAppointments": "Все записи",
     "businesses": "Предприятия",
     "tickets": "Заявки поддержки",
     "businessTypes": "Типы предприятий"
@@ -366,6 +390,12 @@
     "smsOnCancel": "SMS — отмена/отклонение",
     "smsReminder": "SMS — напоминание",
     "slotInterval": "Интервал слота (минуты)",
+    "showPrices": "Показывать цены клиентам",
+    "showPricesHelp": "Если выключено, цены на услуги не отображаются клиентам на странице бронирования.",
+    "mapsUrl": "Ссылка Google Maps",
+    "mapsUrlHelp": "Откройте ваш бизнес в Google Maps → Поделиться → Копировать ссылку. Вставьте сюда.",
+    "appleMapsUrl": "Ссылка Apple Maps",
+    "appleMapsUrlHelp": "Откройте ваш бизнес в Apple Картах → Поделиться → Копировать ссылку. Вставьте сюда.",
     "qrCode": "QR-код",
     "downloadQr": "↓ Скачать QR-код (PNG)",
     "support": "Заявка в поддержку",
@@ -426,7 +456,13 @@
   "storefront": {
     "notFound": "Предприятие не найдено.",
     "notFoundDesc": "Этот адрес недействителен или предприятие было удалено.",
-    "bookAppointment": "Записаться"
+    "bookAppointment": "Записаться",
+    "call": "Позвонить",
+    "getDirections": "Маршрут",
+    "directionsTitle": "Проложить маршрут",
+    "googleMaps": "Google Карты",
+    "appleMaps": "Apple Карты",
+    "workingHours": "Часы работы"
   },
   "superadmin": {
     "businesses": {

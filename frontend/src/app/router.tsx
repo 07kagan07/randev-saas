@@ -75,8 +75,9 @@ const StorefrontPage        = lazyLoad(() => import('../pages/public/StorefrontP
 const BookingPage           = lazyLoad(() => import('../pages/public/BookingPage'));
 const AppointmentActionPage = lazyLoad(() => import('../pages/public/AppointmentActionPage'));
 
-const AdminDashboard    = lazyLoad(() => import('../pages/admin/DashboardPage'));
-const AdminAppointments = lazyLoad(() => import('../pages/admin/AppointmentsPage'));
+const AdminDashboard        = lazyLoad(() => import('../pages/admin/DashboardPage'));
+const AdminAppointments     = lazyLoad(() => import('../pages/admin/AppointmentsPage'));
+const AdminAllAppointments  = lazyLoad(() => import('../pages/admin/AllAppointmentsPage'));
 const AdminOnboarding   = lazyLoad(() => import('../pages/admin/OnboardingPage'));
 const AdminMySchedule   = lazyLoad(() => import('../pages/admin/MySchedulePage'));
 const AdminStaff        = lazyLoad(() => import('../pages/admin/StaffPage'));
@@ -151,10 +152,12 @@ export const router = createBrowserRouter([
           </RequireAuth>
         ),
         children: [
-          { index: true,               element: S(AdminDashboard)    },
+          { index: true,               element: <Navigate to="/admin/appointments" replace /> },
+          { path: 'dashboard',         element: S(AdminDashboard)    },
           { path: 'onboarding',        element: S(AdminOnboarding)   },
-          { path: 'appointments',      element: S(AdminAppointments) },
-          { path: 'my-schedule',       element: S(AdminMySchedule)   },
+          { path: 'appointments',      element: S(AdminAppointments)    },
+          { path: 'all-appointments',  element: S(AdminAllAppointments) },
+          { path: 'my-schedule',       element: S(AdminMySchedule)      },
           { path: 'staff',             element: S(AdminStaff)        },
           { path: 'services',          element: S(AdminServices)     },
           { path: 'reports',           element: S(AdminReports)      },

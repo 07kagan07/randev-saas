@@ -124,9 +124,10 @@ export default function StaffWorkingHoursPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['my-blocked-periods'] }),
   });
 
-  const blocks: any[] = (blocksData?.data ?? []).sort(
-    (a: any, b: any) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime()
-  );
+  const now = new Date();
+  const blocks: any[] = (blocksData?.data ?? [])
+    .filter((b: any) => new Date(b.end_at) >= now)
+    .sort((a: any, b: any) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime());
   const setBlock = (patch: Partial<BlockForm>) => setBlockForm(f => ({ ...f, ...patch }));
   const today = new Date().toISOString().slice(0, 10);
   const canSave = blockForm.date && (

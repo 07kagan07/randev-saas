@@ -203,8 +203,30 @@
     "cancel": "İptal Et",
     "cancelTitle": "Randevuyu İptal Et",
     "cancelConfirm": "Bu randevuyu iptal etmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+    "completeTitle": "Randevuyu Tamamla",
+    "completeConfirm": "Bu randevuyu tamamlandı olarak işaretlemek istediğinizden emin misiniz?",
+    "noShowTitle": "Gelmedi Olarak İşaretle",
+    "noShowConfirm": "Müşteri randevuya gelmedi olarak işaretlenecek. Onaylıyor musunuz?",
     "rejectionReason": "Red Sebebi",
-    "total": "Toplam {{count}} randevu"
+    "total": "Toplam {{count}} randevu",
+    "addWalkIn": "+ Randevu Ekle",
+    "walkInTitle": "Randevu Oluştur",
+    "walkInSubtitle": "Telefon veya walk-in müşteri için",
+    "selectService": "Hizmet seçin...",
+    "selectStaff": "Personel seçin...",
+    "customerName": "Müşteri Adı",
+    "customerNamePlaceholder": "Ad Soyad",
+    "customerPhone": "Müşteri Telefonu",
+    "walkInNotes": "Not",
+    "walkInNotesPlaceholder": "İsteğe bağlı not...",
+    "selectDate": "Tarih Seçin",
+    "selectTime": "Saat Seçin",
+    "availableSlots": "Müsait Saatler",
+    "noSlots": "Bu tarihte müsait saat yok.",
+    "manualTime": "Farklı saat gir",
+    "createAppointment": "Randevu Oluştur",
+    "creating": "Oluşturuluyor...",
+    "createSuccess": "Randevu başarıyla oluşturuldu"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -220,6 +242,8 @@
     "staffPanel": "Personel Görünümü",
     "staffMode": "Personel",
     "adminMode": "Yönetici",
+    "adminSection": "Yönetici",
+    "allAppointments": "Tüm Randevular",
     "businesses": "İşletmeler",
     "tickets": "Destek Talepleri",
     "businessTypes": "İşletme Tipleri"
@@ -366,6 +390,12 @@
     "smsOnCancel": "SMS — iptal/red",
     "smsReminder": "SMS — hatırlatma",
     "slotInterval": "Slot Aralığı (dakika)",
+    "showPrices": "Müşterilere fiyat göster",
+    "showPricesHelp": "Kapalıysa randevu ekranında hizmet fiyatları müşterilere gösterilmez.",
+    "mapsUrl": "Google Maps Linki",
+    "mapsUrlHelp": "Google Maps'te işletmenizi açın → Paylaş → Bağlantıyı kopyala. Buraya yapıştırın.",
+    "appleMapsUrl": "Apple Maps Linki",
+    "appleMapsUrlHelp": "Apple Haritalar'da işletmenizi açın → Paylaş → Bağlantıyı kopyala. Buraya yapıştırın.",
     "qrCode": "QR Kod",
     "downloadQr": "↓ QR Kod İndir (PNG)",
     "support": "Destek Talebi",
@@ -426,7 +456,13 @@
   "storefront": {
     "notFound": "İşletme bulunamadı.",
     "notFoundDesc": "Bu adres geçersiz veya işletme kaldırılmış olabilir.",
-    "bookAppointment": "Randevu Al"
+    "bookAppointment": "Randevu Al",
+    "call": "Ara",
+    "getDirections": "Yol Tarifi Al",
+    "directionsTitle": "Yol Tarifi Al",
+    "googleMaps": "Google Haritalar",
+    "appleMaps": "Apple Haritalar",
+    "workingHours": "Çalışma Saatleri"
   },
   "superadmin": {
     "businesses": {

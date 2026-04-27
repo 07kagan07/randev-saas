@@ -25,7 +25,7 @@ export default function StaffAppointmentsPage() {
   const [showPast, setShowPast] = useState(false);
 
   useBusinessSocket(bid, {
-    onNewAppointment: () => qc.invalidateQueries({ queryKey: ['staff-day-appts'] }),
+    onNewAppointment: () => qc.invalidateQueries({ queryKey: ['staff-day-appts'], refetchType: 'all' }),
   });
 
   const prevDay = () => {
@@ -47,6 +47,7 @@ export default function StaffAppointmentsPage() {
       params: { businessId: bid, from: selectedDate, to: selectedDate, per_page: 100 },
     }).then(r => r.data),
     enabled: !!bid,
+    refetchInterval: 30_000,
   });
 
   const action = useMutation({

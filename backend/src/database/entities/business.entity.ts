@@ -52,6 +52,12 @@ export class Business {
   @Column({ type: 'text', nullable: true })
   address: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  maps_url: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  apple_maps_url: string | null;
+
   @Column({ type: 'varchar', length: 50, nullable: true })
   category: BusinessCategory | null;
 
@@ -104,6 +110,9 @@ export class Business {
 
   @Column({ type: 'int', default: 30 })
   slot_interval_minutes: number;
+
+  @Column({ type: 'boolean', default: false })
+  show_prices: boolean;
 
   @Column({ type: 'uuid', nullable: true })
   business_type_id: string | null;

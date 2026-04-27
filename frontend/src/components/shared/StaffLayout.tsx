@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { NavLink, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { Calendar, Clock, LogOut, Menu, Share2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/auth.store';
+import LanguageSwitcher from './LanguageSwitcher';
+import BottomNav from './BottomNav';
 
 export default function StaffLayout() {
   const { t } = useTranslation();
@@ -26,13 +28,18 @@ export default function StaffLayout() {
     navigate('/login');
   };
 
+  const bottomNavItems: [any, any] = [
+    { to: '/staff/appointments', icon: Calendar, label: t('nav.appointments'), queryKeyPrefix: 'staff-day-appts' },
+    { to: '/staff/hours',        icon: Clock,    label: t('nav.mySchedule'),   queryKeyPrefix: 'my-working-hours' },
+  ];
+
   return (
     <div className="flex h-[100dvh] bg-gray-100 overflow-hidden">
       {sidebarOpen && (
-        <div className="fixed inset-0 z-20 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 z-[48] bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      <aside className={`fixed inset-y-0 left-0 z-30 w-60 bg-indigo-900 text-white flex flex-col transform transition-transform lg:translate-x-0 lg:static lg:z-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-[49] w-60 bg-indigo-900 text-white flex flex-col transform transition-transform lg:translate-x-0 lg:static lg:z-auto ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-5 border-b border-indigo-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-sm font-bold">P</div>
@@ -62,14 +69,17 @@ export default function StaffLayout() {
           ))}
         </nav>
 
-        <div className="p-3 border-t border-indigo-800">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-indigo-200 hover:bg-white/10 hover:text-white transition-colors"
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            <span>{t('auth.logout')}</span>
-          </button>
+        <div className="pt-2 border-t border-indigo-800">
+          <LanguageSwitcher variant="sidebar" mutedTextClass="text-indigo-200" hoverBgClass="hover:bg-white/10 hover:text-white" />
+          <div className="px-3 pb-3">
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-indigo-200 hover:bg-white/10 hover:text-white transition-colors"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              <span>{t('auth.logout')}</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -80,10 +90,12 @@ export default function StaffLayout() {
           </button>
           <span className="font-semibold text-gray-800">{pageTitle}</span>
         </header>
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 lg:pb-6 pb-24">
           <Outlet />
         </main>
       </div>
+
+      <BottomNav items={bottomNavItems} isAdmin={false} />
     </div>
   );
 }

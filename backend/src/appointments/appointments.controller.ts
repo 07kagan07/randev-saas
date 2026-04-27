@@ -26,6 +26,15 @@ export class AppointmentsController {
     return this.appointmentsService.create(dto);
   }
 
+  // Staff/Admin — throttle yok, direkt APPROVED
+  @Post('walk-in')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.BUSINESS_ADMIN, UserRole.STAFF)
+  @HttpCode(HttpStatus.CREATED)
+  createWalkIn(@CurrentUser() user: User, @Body() dto: CreateAppointmentDto) {
+    return this.appointmentsService.createInternal(dto, user);
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.BUSINESS_ADMIN, UserRole.STAFF)

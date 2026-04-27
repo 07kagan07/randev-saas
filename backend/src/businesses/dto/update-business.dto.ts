@@ -9,6 +9,14 @@ export class UpdateBusinessDto extends PartialType(CreateBusinessDto) {
 
   @IsOptional()
   @IsString()
+  maps_url?: string;
+
+  @IsOptional()
+  @IsString()
+  apple_maps_url?: string;
+
+  @IsOptional()
+  @IsString()
   cover_url?: string;
 
   @IsOptional()
@@ -40,4 +48,8 @@ export class UpdateBusinessDto extends PartialType(CreateBusinessDto) {
   @IsOptional()
   @IsInt()
   slot_interval_minutes?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  show_prices?: boolean;
 }
