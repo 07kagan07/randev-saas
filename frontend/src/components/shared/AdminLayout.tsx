@@ -21,7 +21,10 @@ export default function AdminLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { notifications, unreadCount, markAllRead } = useAppointmentNotifications(
     user?.business_id,
-    () => qc.invalidateQueries({ queryKey: ['admin-day-appts'], refetchType: 'all' }),
+    () => {
+      qc.invalidateQueries({ queryKey: ['admin-day-appts'], refetchType: 'all' });
+      qc.invalidateQueries({ queryKey: ['all-day-appts'], refetchType: 'all' });
+    },
   );
 
   const staffNav = [

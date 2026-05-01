@@ -3,6 +3,10 @@ import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const self: any;
 
+// Yeni SW yüklenince hemen devral — eski sekmelerin cache'te kalmasını önler
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (e: any) => e.waitUntil(self.clients.claim()));
+
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 

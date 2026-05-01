@@ -4,7 +4,6 @@ import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/auth.store';
 import ApptCard, { isArchived } from '../../components/shared/ApptCard';
-import { useBusinessSocket } from '../../hooks/useBusinessSocket';
 import api from '../../services/api';
 import { userLocale } from '../../utils/locale';
 
@@ -23,10 +22,6 @@ export default function AdminAppointmentsPage() {
 
   const [selectedDate, setSelectedDate] = useState(toDateStr(new Date()));
   const [showPast, setShowPast] = useState(false);
-
-  useBusinessSocket(bid, {
-    onNewAppointment: () => qc.invalidateQueries({ queryKey: ['admin-day-appts'], refetchType: 'all' }),
-  });
 
   const prevDay = () => {
     const d = new Date(selectedDate + 'T12:00:00');

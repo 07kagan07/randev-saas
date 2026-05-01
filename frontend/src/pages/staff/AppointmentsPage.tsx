@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
 import ApptCard, { isArchived } from '../../components/shared/ApptCard';
-import { useBusinessSocket } from '../../hooks/useBusinessSocket';
 import api from '../../services/api';
 import { userLocale } from '../../utils/locale';
 
@@ -26,10 +25,6 @@ export default function StaffAppointmentsPage() {
   const [selectedDate, setSelectedDate] = useState(() => searchParams.get('date') || toDateStr(new Date()));
   const [showPast, setShowPast] = useState(false);
   const [activeHighlight, setActiveHighlight] = useState<string | null>(() => searchParams.get('highlight'));
-
-  useBusinessSocket(bid, {
-    onNewAppointment: () => qc.invalidateQueries({ queryKey: ['staff-day-appts'], refetchType: 'all' }),
-  });
 
   const prevDay = () => {
     const d = new Date(selectedDate + 'T12:00:00');
