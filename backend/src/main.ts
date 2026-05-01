@@ -11,6 +11,9 @@ import { ResponseFormatInterceptor } from './common/interceptors/response-format
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // nginx arkasında gerçek istemci IP'sini al (rate limiting için)
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   const configService = app.get(ConfigService);
 
   // Güvenlik

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import Redis from 'ioredis';
@@ -10,6 +10,8 @@ import { REDIS_CLIENT } from '../config/redis.module';
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     @InjectRepository(Business)
     private readonly businessRepo: Repository<Business>,
@@ -90,6 +92,7 @@ export class AdminService {
   async deleteUser(userId: string): Promise<void> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException({ code: 'USER_NOT_FOUND', message: 'Kullanıcı bulunamadı.' });
+    this.logger.warn(`Hard delete: user id=${userId} phone=${user.phone} role=${user.role}`);
     await this.userRepo.remove(user);
   }
 

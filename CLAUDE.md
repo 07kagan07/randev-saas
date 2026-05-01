@@ -68,6 +68,12 @@ nginx:8080
 - `JwtAuthGuard` + `RolesGuard` + `@Roles(...)` decorator on protected routes
 - Three roles: `super_admin`, `business_admin`, `staff`
 
+**`@Public()` decorator** (`src/common/decorators/public.decorator.ts`):
+- Use `@Public()` on any controller method that must be accessible without a JWT token
+- `JwtAuthGuard` checks `Reflector` for the `isPublic` metadata key and skips auth if set
+- `RolesGuard` does the same — both guards must be bypassed for truly public routes
+- Pattern: add `@Public()` above the `@Get(...)` decorator, no `@UseGuards(...)` needed
+
 **Module structure** — each feature is a standalone NestJS module:
 - `auth/` — OTP, JWT strategy, ThrottlerGuard registered globally here
 - `businesses/` — tenant management, slug-based public lookup, QR generation, plan usage, notification settings, support tickets
@@ -92,6 +98,8 @@ POST /auth/refresh             — refresh access token from HttpOnly cookie
 POST /auth/logout              — clear refresh cookie
 
 GET  /businesses/slug/:slug    — public storefront lookup (no auth)
+GET  /businesses/:id/public-staff       — public: active staff list (id, name, avatar) for booking page
+GET  /businesses/:id/opening-hours      — public: union working hours across all active staff (7-day array)
 GET  /businesses/:id/qr        — download QR PNG or SVG (auth: admin/staff)
 GET  /businesses/:id/plan-usage
 GET  /businesses/:id/notification-settings
@@ -104,7 +112,7 @@ GET   /businesses/:bId/staff/:id
 PATCH /businesses/:bId/staff/:id          — update staff; accepts service_ids[] to set skill mapping
 DELETE /businesses/:bId/staff/:id
 
-GET   /staff/:staffId/working-hours       — 7-day array
+GET   /staff/:staffId/working-hours       — 7-day array (@Public — no auth needed for storefront)
 PATCH /staff/:staffId/working-hours       — upsert all 7 days
 POST  /staff/:staffId/blocked-periods
 GET   /staff/:staffId/blocked-periods
@@ -182,7 +190,8 @@ Security hardening in gateway: UUID v4 regex, ISO 8601 UTC regex, rate limit 30 
 **Key shared components:**
 - `src/components/shared/ApptCard.tsx` — appointment card with accordion detail panel, cancel confirm modal, staff actions (complete/no-show/cancel). Exports `isArchived(appt)` helper.
 - `src/components/shared/DatePicker.tsx` — calendar popover using react-day-picker + date-fns. Locale-aware (respects i18n language: tr/en/de/ru). Default placeholder from `t('common.selectDate')`.
-- `src/components/shared/PhoneInput.tsx` — country code dropdown + phone number input. Emits E.164 format (`+905551234567`). Country data from `src/data/countries.ts`.
+- `src/components/shared/PhoneInput.tsx` — country code dropdown + phone number input. Emits E.164 format (`+905551234567`). Country data from `src/data/countries.ts`. Features: per-country max-length enforcement (`country.phoneLen[1]`), `dirty`-state validation (error shown only after user types), red ring + error hint when invalid (`t('phone.invalid', { hint })`). Uses `ring-1`/`ring-2` (box-shadow) instead of `border` to avoid antialiasing artifacts at rounded corners. Inner `<input>` has `border-0` to override browser default `input[type=tel]` border.
+- `src/components/shared/LanguageSwitcher.tsx` — has 3 variants: `sidebar`, `light` (dark hero bg), `dark` (white bg). Uses ISO code badges (`LangBadge` component) instead of emoji flags — emoji flags don't render on Windows.
 - `src/hooks/useBusinessSocket.ts` — Socket.io hook: connects once per `businessId`, exposes `lockSlot`/`unlockSlot`
 
 **Routing — complete page map:**
@@ -232,12 +241,24 @@ Security hardening in gateway: UUID v4 regex, ISO 8601 UTC regex, rate limit 30 
 - All user-visible strings **must** use `t('key')` — no hardcoded Turkish or English in TSX
 - `toLocaleDateString()` calls should pass `i18n.language` (not hardcoded `'tr-TR'`)
 - `DatePicker` locale uses `LOCALE_MAP` mapping i18n language → date-fns locale
+- Notable keys added recently: `phone.invalid` (takes `{{hint}}` interpolation), `phone.searchCountry`, `phone.countryNotFound`, `booking.selectSlotFirst`
+- All 4 locale files (`tr`, `en`, `de`, `ru`) must always be kept in sync when adding new keys
 
 **Date handling:** Always use local timezone for date strings (not `.toISOString().slice(0,10)` which returns UTC and breaks after midnight in Turkey). Pattern: `localDateStr(d)` using `d.getFullYear()`, `d.getMonth()`, `d.getDate()`.
 
 **Slot availability:** `GET /availability?business_id=&service_id=&staff_id=&date=` returns `{ data: { slots: [{ start_utc, start_local, available }] } }`. Read slots as `slotsData?.data?.slots`.
 
 **isArchived logic** (shared, exported from ApptCard): terminal status OR `end_at < now()`. Used to separate past/upcoming appointments in list views.
+
+**BookingPage customer data persistence:** On successful booking, `customer_name` and `customer_phone` are saved to `localStorage` under key `booking_customer`. On next visit the form pre-fills from this value (lazy `useState` initializer). If a saved phone already matches a country dial code, the country is not auto-overridden by the business's country setting.
+
+**StorefrontPage working hours:** Fetches `GET /businesses/:id/opening-hours` (single call, no auth). Returns a 7-element array representing the union of all active staff schedules — widest open window per day. Do not fetch individual staff working hours for the storefront.
+
+**Phone validation:**
+- `validateLocalPhone(local, country)` — validates digits-only local number against `country.phoneLen` and `country.phonePrefix`
+- `validateE164Phone(e164)` — validates a full E.164 string (must start with dial code + valid local number)
+- Both exported from `src/data/countries.ts`
+- Used in: `PhoneInput` (inline error), `LoginPage` (button disabled + guard), `RegisterPage` (button disabled + guard), `BookingPage` (submit disabled)
 
 ---
 
@@ -290,4 +311,4 @@ Register in `src/config/database.config.ts` migrations array, then `migration:ru
 - **Staff-service skills:** `PATCH /businesses/:bId/staff/:staffId` accepts `service_ids: string[]`. When empty, staff can perform all services. Used in onboarding step 5 and StaffPage blocked-period management.
 - **QR code:** `GET /businesses/:id/qr?format=png` — PNG download, auth required (any role of that business). Staff can download from `/staff/share`.
 - **Support tickets:** `POST /businesses/:id/support-tickets` — staff/admin send ticket to super admin. Super admin manages via `/superadmin/tickets`.
-- **countries data:** `src/data/countries.ts` — array of `{ code, name, dialCode, flag, timezone }`. Used in PhoneInput (dial code) and onboarding Step 2 (country + timezone auto-fill).
+- **countries data:** `src/data/countries.ts` — `Country` interface: `{ code, name, dialCode, flag, timezone, phoneLen: [min, max], phonePrefix?: string }`. ~70 countries. `phoneLen` enforces max-length on PhoneInput and drives validation. `phonePrefix` is the required leading digit(s) for local numbers (e.g. TR: `phoneLen=[10,10]`, `phonePrefix='5'`). Also exports `DEFAULT_COUNTRY` (TR), `parsePhoneE164`, `validateLocalPhone`, `validateE164Phone`. Used in PhoneInput, LoginPage, RegisterPage, BookingPage, and onboarding Step 2.

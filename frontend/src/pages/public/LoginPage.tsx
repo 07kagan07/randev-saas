@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 import { useAuthStore } from '../../store/auth.store';
 import PhoneInput from '../../components/shared/PhoneInput';
-import { DEFAULT_COUNTRY, parsePhoneE164 } from '../../data/countries';
+import { DEFAULT_COUNTRY, parsePhoneE164, validateE164Phone } from '../../data/countries';
 
 type Step = 'phone' | 'otp';
 
@@ -27,7 +27,7 @@ export default function LoginPage() {
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (phone.length < 8) { setError(t('auth.errors.invalidPhone')); return; }
+    if (!validateE164Phone(phone)) { setError(t('auth.errors.invalidPhone')); return; }
     setError('');
     setLoading(true);
     try {
@@ -80,7 +80,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
           {step === 'phone' ? (
             <form onSubmit={handleSendOtp} className="space-y-4">
               <div>
@@ -88,19 +88,19 @@ export default function LoginPage() {
                 <PhoneInput value={phone} onChange={setPhone} />
               </div>
 
-              {error && <p className="text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+              {error && <p className="text-red-600 text-sm bg-red-50 rounded-xl px-3 py-2">{error}</p>}
 
               <button
                 type="submit"
-                disabled={loading || phone.length < 8}
-                className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold rounded-lg transition-colors text-base"
+                disabled={loading || !validateE164Phone(phone)}
+                className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold rounded-xl transition-colors text-base"
               >
                 {loading ? t('common.sending') : t('auth.sendOtp')}
               </button>
             </form>
           ) : (
             <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="text-center text-sm text-gray-600 bg-indigo-50 rounded-lg p-3">
+              <div className="text-center text-sm text-gray-600 bg-indigo-50 rounded-xl p-3">
                 {t('auth.otpSentTo', { phone })}
               </div>
 
@@ -112,18 +112,18 @@ export default function LoginPage() {
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   placeholder={t('auth.otpPlaceholder')}
-                  className="w-full px-4 py-3 text-center text-2xl font-bold tracking-widest border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-3 text-center text-2xl font-bold tracking-widest border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   autoFocus
                   required
                 />
               </div>
 
-              {error && <p className="text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2">{error}</p>}
+              {error && <p className="text-red-600 text-sm bg-red-50 rounded-xl px-3 py-2">{error}</p>}
 
               <button
                 type="submit"
                 disabled={loading || otp.length < 4}
-                className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold rounded-lg transition-colors text-base"
+                className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold rounded-xl transition-colors text-base"
               >
                 {loading ? t('common.loading') : t('auth.verifyOtp')}
               </button>

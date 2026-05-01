@@ -3,19 +3,27 @@ import {
   Body, Param, Query, Res, UseGuards,
   HttpCode, HttpStatus,
 } from '@nestjs/common';
-import { IsString, MinLength, MaxLength } from 'class-validator';
+import { IsString, IsObject, MinLength, MaxLength } from 'class-validator';
 import { Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { Public } from '../common/decorators/public.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UserRole, User } from '../database/entities/user.entity';
 import { BusinessesService } from './businesses.service';
 import { PlanLimitService } from './plan-limit.service';
+import { PushService } from '../notifications/push/push.service';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 import { UpdateNotificationSettingsDto } from './dto/update-notification-settings.dto';
 import { ListBusinessesDto } from './dto/list-businesses.dto';
+
+class PushSubscribeDto {
+  @IsString() endpoint: string;
+  @IsObject() keys: { auth: string; p256dh: string };
+}
 
 class CreateTicketDto {
   @IsString() @MinLength(3) @MaxLength(255)
@@ -30,7 +38,30 @@ export class BusinessesController {
   constructor(
     private readonly businessesService: BusinessesService,
     private readonly planLimitService: PlanLimitService,
+    private readonly pushService: PushService,
+    private readonly config: ConfigService,
   ) {}
+
+  // Push bildirim VAPID public key (auth gerektirir)
+  @Get('push-vapid-key')
+  @UseGuards(JwtAuthGuard)
+  getVapidPublicKey() {
+    return { data: { publicKey: this.config.get<string>('VAPID_PUBLIC_KEY', '') } };
+  }
+
+  // Push aboneliği kaydet + işletme için push_enabled otomatik aç
+  @Post('push-subscribe')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async pushSubscribe(
+    @Body() dto: PushSubscribeDto,
+    @CurrentUser() user: User,
+  ) {
+    await this.pushService.subscribe(user.id, dto.endpoint, dto.keys);
+    if (user.business_id) {
+      await this.businessesService.updateNotificationSettings(user.business_id, { push_enabled: true } as any);
+    }
+  }
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -50,6 +81,19 @@ export class BusinessesController {
   @Get('slug/:slug')
   findBySlug(@Param('slug') slug: string) {
     return this.businessesService.findBySlug(slug);
+  }
+
+  // Public — randevu adımı için personel listesi (sadece id + isim, JWT gerektirmez)
+  @Get(':id/public-staff')
+  getPublicStaff(@Param('id') id: string) {
+    return this.businessesService.getPublicStaff(id);
+  }
+
+  // Public — vitrin için birleşik çalışma saatleri (JWT gerektirmez)
+  @Get(':id/opening-hours')
+  @Public()
+  getOpeningHours(@Param('id') id: string) {
+    return this.businessesService.getOpeningHours(id);
   }
 
   @Get(':id')

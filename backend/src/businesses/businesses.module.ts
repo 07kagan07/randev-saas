@@ -9,10 +9,11 @@ import { NotificationSettings } from '../database/entities/notification-settings
 import { User } from '../database/entities/user.entity';
 import { Service } from '../database/entities/service.entity';
 import { SupportTicket } from '../database/entities/support-ticket.entity';
+import { WorkingHours } from '../database/entities/working-hours.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Business, Appointment, NotificationSettings, User, Service, SupportTicket]),
+    TypeOrmModule.forFeature([Business, Appointment, NotificationSettings, User, Service, SupportTicket, WorkingHours]),
   ],
   controllers: [BusinessesController],
   providers: [BusinessesService, PlanLimitService],

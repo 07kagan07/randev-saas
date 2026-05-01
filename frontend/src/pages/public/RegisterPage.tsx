@@ -4,7 +4,7 @@ import { ChevronLeft, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import api from '../../services/api';
 import PhoneInput from '../../components/shared/PhoneInput';
-import { DEFAULT_COUNTRY } from '../../data/countries';
+import { DEFAULT_COUNTRY, validateE164Phone } from '../../data/countries';
 
 type Step = 'info' | 'otp';
 
@@ -19,7 +19,7 @@ export default function RegisterPage() {
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.full_name.trim() || form.phone.length < 8) return;
+    if (!form.full_name.trim() || !validateE164Phone(form.phone)) return;
     setError('');
     setLoading(true);
     try {
@@ -76,7 +76,7 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
           {step === 'info' ? (
             <form onSubmit={handleSendOtp} className="space-y-4">
               <div>
@@ -107,7 +107,7 @@ export default function RegisterPage() {
 
               <button
                 type="submit"
-                disabled={loading || !form.full_name.trim() || form.phone.length < 8}
+                disabled={loading || !form.full_name.trim() || !validateE164Phone(form.phone)}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold py-3 rounded-xl transition-colors"
               >
                 {loading ? t('common.sending') : t('auth.sendOtp')}

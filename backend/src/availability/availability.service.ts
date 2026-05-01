@@ -113,6 +113,11 @@ export class AvailabilityService {
       throw new BadRequestException({ code: 'INVALID_DATE', message: 'Geçersiz tarih formatı.' });
     }
 
+    const todayInTz = DateTime.now().setZone(timezone).startOf('day');
+    if (dateTime < todayInTz) {
+      throw new BadRequestException({ code: 'PAST_DATE', message: 'Geçmiş tarih için uygunluk sorgulanamaz.' });
+    }
+
     // luxon: 1=Mon...7=Sun → bizim 0=Mon...6=Sun
     const dayOfWeek = dateTime.weekday - 1;
 

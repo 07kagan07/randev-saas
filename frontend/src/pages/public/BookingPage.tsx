@@ -7,7 +7,7 @@ import DirectionsModal, { openDirections } from '../../components/shared/Directi
 import api from '../../services/api';
 import { useBusinessSocket } from '../../hooks/useBusinessSocket';
 import PhoneInput from '../../components/shared/PhoneInput';
-import { DEFAULT_COUNTRY, COUNTRIES } from '../../data/countries';
+import { DEFAULT_COUNTRY, COUNTRIES, validateE164Phone } from '../../data/countries';
 import { userLocale } from '../../utils/locale';
 
 function localDateStr(d: Date): string {
@@ -122,7 +122,13 @@ export default function BookingPage() {
   const [selectedDate, setSelectedDate] = useState(() => localDateStr(new Date()));
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [lockedSlots, setLockedSlots] = useState<Set<string>>(new Set());
-  const [form, setForm] = useState({ customer_name: '', customer_phone: DEFAULT_COUNTRY.dialCode });
+  const [form, setForm] = useState(() => {
+    try {
+      const saved = localStorage.getItem('booking_customer');
+      if (saved) return JSON.parse(saved) as { customer_name: string; customer_phone: string };
+    } catch {}
+    return { customer_name: '', customer_phone: DEFAULT_COUNTRY.dialCode };
+  });
   const [extraFields, setExtraFields] = useState<Record<string, string>>({});
   const [createdAppt, setCreatedAppt] = useState<any>(null);
 
@@ -138,8 +144,12 @@ export default function BookingPage() {
   React.useEffect(() => {
     if (biz?.country && !bizCountryApplied.current) {
       bizCountryApplied.current = true;
-      const found = COUNTRIES.find(c => c.code === biz.country);
-      if (found) setForm(f => ({ ...f, customer_phone: found.dialCode }));
+      // Kayıtlı telefon numarası yoksa işletmenin ülkesini varsayılan yap
+      const hasSaved = !!localStorage.getItem('booking_customer');
+      if (!hasSaved) {
+        const found = COUNTRIES.find(c => c.code === biz.country);
+        if (found) setForm(f => ({ ...f, customer_phone: found.dialCode }));
+      }
     }
   }, [biz?.country]);
 
@@ -177,7 +187,7 @@ export default function BookingPage() {
 
   const { data: staffData, isLoading: staffLoading } = useQuery({
     queryKey: ['storefront-staff', biz?.id],
-    queryFn: () => api.get(`/businesses/${biz.id}/staff`).then(r => r.data),
+    queryFn: () => api.get(`/businesses/${biz.id}/public-staff`).then(r => r.data),
     enabled: !!biz?.id && step === 'staff' && !(selectedService?.staff_services?.length > 0),
   });
 
@@ -207,6 +217,12 @@ export default function BookingPage() {
     onSuccess: (res) => {
       setCreatedAppt(res.data?.data);
       setStep('done');
+      try {
+        localStorage.setItem('booking_customer', JSON.stringify({
+          customer_name: form.customer_name,
+          customer_phone: form.customer_phone,
+        }));
+      } catch {}
     },
   });
 
@@ -341,7 +357,8 @@ export default function BookingPage() {
             ) : (
               <>
                 <p className="text-xs text-gray-400 mb-2">{t('booking.availableSlots', { count: slots.filter(s => s.available).length })}</p>
-                <div className="grid grid-cols-4 gap-2">
+                {/* pb-28 keeps last row above the sticky continue bar */}
+                <div className="grid grid-cols-4 gap-2 pb-28">
                   {slots.map((slot: any) => {
                     const isPast     = slot.reason === 'past';
                     const isFull     = !slot.available && !isPast;
@@ -376,12 +393,26 @@ export default function BookingPage() {
                 </div>
               </>
             )}
-            {selectedSlot && (
-              <button onClick={() => setStep('form')}
-                className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-xl transition-colors">
-                {t('booking.continueBtn')}
-              </button>
-            )}
+
+            {/* Sticky continue bar — always visible at viewport bottom */}
+            <div className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-gray-200 px-4 py-3 safe-area-pb">
+              <div className="max-w-lg mx-auto">
+                {selectedSlot ? (
+                  <button
+                    onClick={() => setStep('form')}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-3"
+                  >
+                    <span className="text-base">{slots.find(s => s.start_utc === selectedSlot)?.start_local}</span>
+                    <span className="opacity-60">·</span>
+                    <span>{t('booking.continueBtn')} →</span>
+                  </button>
+                ) : (
+                  <div className="w-full bg-gray-100 text-gray-400 font-medium py-3.5 rounded-xl text-center text-sm select-none">
+                    {t('booking.selectSlotFirst')}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -469,7 +500,7 @@ export default function BookingPage() {
                 disabled={
                   createAppt.isPending ||
                   !form.customer_name.trim() ||
-                  form.customer_phone.length < 8 ||
+                  !validateE164Phone(form.customer_phone) ||
                   bookingFormFields.some((f: any) => f.required && !extraFields[f.key]?.trim())
                 }
                 className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-medium py-3 rounded-xl transition-colors">
@@ -564,7 +595,7 @@ export default function BookingPage() {
             )}
 
             <Link to={`/${slug}`}
-              className="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-3 rounded-xl transition-colors">
+              className="inline-block text-sm text-gray-400 hover:text-gray-600 transition-colors underline-offset-2 hover:underline">
               {t('booking.backToStore')}
             </Link>
           </div>

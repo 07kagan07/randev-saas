@@ -155,7 +155,8 @@
     "selectOption": "Select...",
     "noSlotsForDate": "No available slots for this date.",
     "tryOtherDate": "Try another date.",
-    "continueBtn": "Continue →",
+    "continueBtn": "Continue",
+    "selectSlotFirst": "Please select a time slot",
     "requestReceivedTitle": "Request Received!",
     "pendingApprovalMsg": "Your appointment has been sent for business approval.",
     "willNotifySms": "You will be notified by SMS when approved.",
@@ -385,6 +386,7 @@
     "approvalMode": "Approval Mode",
     "autoApprove": "Auto Approve",
     "manualApprove": "Manual Approve",
+    "approvalModeHelp": "In manual mode, the customer receives a confirmation SMS when you approve their booking request.",
     "notifications": "Notifications",
     "smsOnNew": "SMS — new appointment",
     "smsOnCancel": "SMS — cancellation/rejection",
@@ -562,6 +564,20 @@
   },
   "phone": {
     "searchCountry": "Search country...",
-    "countryNotFound": "Country not found"
+    "countryNotFound": "Country not found",
+    "invalid": "Invalid phone number ({{hint}} digits)"
+  },
+  "push": {
+    "promptDesc": "Enable notifications to get instant alerts for new appointments",
+    "enable": "Enable Notifications",
+    "dismiss": "Not Now"
+  },
+  "notifBell": {
+    "title": "Notifications",
+    "new": "new",
+    "empty": "No notifications yet",
+    "pendingApproval": "Pending Approval",
+    "approved": "Confirmed",
+    "viewAll": "View all appointments"
   }
 }

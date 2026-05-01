@@ -3,14 +3,23 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown, Globe } from 'lucide-react';
 
 const LANGS = [
-  { code: 'tr', flag: '🇹🇷', label: 'Türkçe' },
-  { code: 'en', flag: '🇬🇧', label: 'English' },
-  { code: 'de', flag: '🇩🇪', label: 'Deutsch' },
-  { code: 'ru', flag: '🇷🇺', label: 'Русский' },
+  { code: 'tr', abbr: 'TR', label: 'Türkçe' },
+  { code: 'en', abbr: 'EN', label: 'English' },
+  { code: 'de', abbr: 'DE', label: 'Deutsch' },
+  { code: 'ru', abbr: 'RU', label: 'Русский' },
 ];
 
+function LangBadge({ abbr, active, size = 'sm' }: { abbr: string; active?: boolean; size?: 'sm' | 'xs' }) {
+  return (
+    <span className={`inline-flex items-center justify-center font-bold rounded leading-none select-none ${
+      size === 'xs' ? 'w-6 h-4 text-[9px]' : 'w-7 h-5 text-[10px]'
+    } ${active ? 'bg-white text-indigo-700' : 'bg-indigo-100 text-indigo-700'}`}>
+      {abbr}
+    </span>
+  );
+}
+
 interface Props {
-  /** 'light' = koyu arka plan üzerinde (hero), 'dark' = beyaz arka plan üzerinde (header), 'sidebar' = sidebar içinde tam metin liste */
   variant?: 'light' | 'dark' | 'sidebar';
   mutedTextClass?: string;
   hoverBgClass?: string;
@@ -35,7 +44,7 @@ export default function LanguageSwitcher({ variant = 'dark', mutedTextClass = 't
     setOpen(false);
   };
 
-  /* ── Sidebar variant: collapsible list with flag + full label ── */
+  /* ── Sidebar variant ── */
   if (variant === 'sidebar') {
     return (
       <div ref={ref} className="px-3 pb-1">
@@ -44,7 +53,10 @@ export default function LanguageSwitcher({ variant = 'dark', mutedTextClass = 't
           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${mutedTextClass} ${hoverBgClass} transition-colors`}
         >
           <Globe className="w-4 h-4 shrink-0" />
-          <span className="flex-1 text-left">{current.flag} {current.label}</span>
+          <span className="flex-1 text-left flex items-center gap-2">
+            <LangBadge abbr={current.abbr} active />
+            {current.label}
+          </span>
           <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
         {open && (
@@ -59,7 +71,7 @@ export default function LanguageSwitcher({ variant = 'dark', mutedTextClass = 't
                     : `${mutedTextClass} ${hoverBgClass}`
                 }`}
               >
-                <span className="text-base leading-none">{lang.flag}</span>
+                <LangBadge abbr={lang.abbr} active={lang.code === current.code} />
                 <span>{lang.label}</span>
               </button>
             ))}
@@ -77,11 +89,11 @@ export default function LanguageSwitcher({ variant = 'dark', mutedTextClass = 't
           onClick={() => setOpen(o => !o)}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-sm font-medium transition-colors"
         >
-          <span className="text-base leading-none">{current.flag}</span>
+          <span className="text-xs font-bold">{current.abbr}</span>
           <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
         {open && (
-          <div className="absolute right-0 top-full mt-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
+          <div className="absolute right-0 top-full mt-2 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
             {LANGS.map(lang => (
               <button
                 key={lang.code}
@@ -92,7 +104,7 @@ export default function LanguageSwitcher({ variant = 'dark', mutedTextClass = 't
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <span className="text-base leading-none">{lang.flag}</span>
+                <LangBadge abbr={lang.abbr} active={lang.code === current.code} />
                 <span>{lang.label}</span>
               </button>
             ))}
@@ -109,11 +121,11 @@ export default function LanguageSwitcher({ variant = 'dark', mutedTextClass = 't
         onClick={() => setOpen(o => !o)}
         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-medium transition-colors"
       >
-        <span className="text-base leading-none">{current.flag}</span>
+        <LangBadge abbr={current.abbr} />
         <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
+        <div className="absolute right-0 top-full mt-2 w-36 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-50">
           {LANGS.map(lang => (
             <button
               key={lang.code}
@@ -124,7 +136,7 @@ export default function LanguageSwitcher({ variant = 'dark', mutedTextClass = 't
                   : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
-              <span className="text-base leading-none">{lang.flag}</span>
+              <LangBadge abbr={lang.abbr} active={lang.code === current.code} />
               <span>{lang.label}</span>
             </button>
           ))}

@@ -6,6 +6,7 @@ import {
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UserRole, User } from '../database/entities/user.entity';
 import { StaffService } from './staff.service';
@@ -82,10 +83,11 @@ export class StaffController {
 
   // ─── Çalışma Saatleri (/staff/:staffId/working-hours) ────────────────────
 
+  // Public — vitrin sayfası çalışma saatlerini göstermek için çağırır
   @Get('staff/:staffId/working-hours')
-  @Roles(UserRole.BUSINESS_ADMIN, UserRole.STAFF, UserRole.SUPER_ADMIN)
-  getWorkingHours(@Param('staffId') staffId: string, @CurrentUser() user: User) {
-    const id = user.role === UserRole.STAFF ? user.id : staffId;
+  @Public()
+  getWorkingHours(@Param('staffId') staffId: string, @CurrentUser() user?: User) {
+    const id = user?.role === UserRole.STAFF ? user.id : staffId;
     return this.staffService.getWorkingHours(id);
   }
 

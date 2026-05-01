@@ -62,6 +62,25 @@ export class SmsService {
     await this.sendSms(phone, message);
   }
 
+  async sendAppointmentPendingCustomer(
+    phone: string,
+    params: {
+      customerName: string;
+      businessName: string;
+      date: string;
+      time: string;
+      serviceName: string;
+      actionLink: string;
+    },
+  ): Promise<void> {
+    const message =
+      `Merhaba ${params.customerName}, ` +
+      `${params.businessName} randevu talebiniz alindi. ` +
+      `Onaylandiginda SMS ile bilgilendirileceksiniz. ` +
+      `Iptal/erteleme: ${params.actionLink}`;
+    await this.sendSms(phone, message);
+  }
+
   async sendAppointmentConfirmed(
     phone: string,
     params: {

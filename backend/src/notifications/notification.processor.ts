@@ -3,7 +3,6 @@ import { Job } from 'bull';
 import { Logger } from '@nestjs/common';
 import { SmsService } from './sms/sms.service';
 import { WhatsappService } from './whatsapp/whatsapp.service';
-import { PushService } from './push/push.service';
 
 export interface NotificationJob {
   type: 'sms' | 'whatsapp' | 'push';
@@ -21,26 +20,21 @@ export class NotificationProcessor {
   constructor(
     private readonly smsService: SmsService,
     private readonly whatsappService: WhatsappService,
-    private readonly pushService: PushService,
   ) {}
 
-  @Process()
+  @Process({ concurrency: 5 })
   async handleNotification(job: Job<NotificationJob>) {
-    const { type, event, phone, userId, userIds, params } = job.data;
+    const { type, event, phone, params } = job.data;
 
     try {
       if (type === 'sms' && phone) {
         await this.dispatchSms(event, phone, params);
       } else if (type === 'whatsapp' && phone) {
         await this.dispatchWhatsapp(event, phone, params);
-      } else if (type === 'push') {
-        const ids = userIds || (userId ? [userId] : []);
-        if (ids.length > 0) {
-          await this.pushService.sendToUsers(ids, params as any);
-        }
       }
     } catch (error) {
       this.logger.error(`Bildirim işleme hatası: ${event}`, error?.message);
+      throw error; // Bull retry mekanizmasını tetikler
     }
   }
 
@@ -50,6 +44,8 @@ export class NotificationProcessor {
     params: Record<string, any>,
   ) {
     switch (event) {
+      case 'appointment.pending_customer':
+        return this.smsService.sendAppointmentPendingCustomer(phone, params as any);
       case 'appointment.confirmed':
         return this.smsService.sendAppointmentConfirmed(phone, params as any);
       case 'appointment.rejected':

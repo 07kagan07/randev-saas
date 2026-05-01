@@ -2,16 +2,27 @@ import React, { useState } from 'react';
 import { NavLink, useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { LayoutDashboard, Calendar, Users, Scissors, TrendingUp, Settings, LogOut, Menu, Clock, CalendarDays } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/auth.store';
+import { usePushNotifications } from '../../hooks/usePushNotifications';
+import { useAppointmentNotifications } from '../../hooks/useAppointmentNotifications';
+import NotificationBell from './NotificationBell';
 import LanguageSwitcher from './LanguageSwitcher';
 import BottomNav from './BottomNav';
+import PushPromptBanner from './PushPromptBanner';
 
 export default function AdminLayout() {
   const { t } = useTranslation();
+  usePushNotifications();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+  const qc = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { notifications, unreadCount, markAllRead } = useAppointmentNotifications(
+    user?.business_id,
+    () => qc.invalidateQueries({ queryKey: ['admin-day-appts'], refetchType: 'all' }),
+  );
 
   const staffNav = [
     { to: '/admin/appointments', label: t('nav.appointments'), icon: Calendar },
@@ -106,8 +117,15 @@ export default function AdminLayout() {
           <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 lg:hidden">
             <Menu className="w-5 h-5" />
           </button>
-          <span className="font-semibold text-gray-800">{pageTitle}</span>
+          <span className="font-semibold text-gray-800 flex-1">{pageTitle}</span>
+          <NotificationBell
+            notifications={notifications}
+            unreadCount={unreadCount}
+            onOpen={markAllRead}
+            appointmentsPath="/admin/all-appointments"
+          />
         </header>
+        <PushPromptBanner />
         <main className="flex-1 overflow-y-auto p-6 lg:pb-6 pb-24">
           <Outlet />
         </main>

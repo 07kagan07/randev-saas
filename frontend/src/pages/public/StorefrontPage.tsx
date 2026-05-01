@@ -28,21 +28,13 @@ export default function StorefrontPage() {
 
   const biz = bizData?.data;
 
-  const { data: staffData } = useQuery({
-    queryKey: ['storefront-staff', biz?.id],
-    queryFn: () => api.get(`/businesses/${biz.id}/staff`).then(r => r.data),
+  const { data: hoursData } = useQuery({
+    queryKey: ['storefront-hours', biz?.id],
+    queryFn: () => api.get(`/businesses/${biz.id}/opening-hours`).then(r => r.data),
     enabled: !!biz?.id,
   });
 
-  const activeStaff: any[] = (staffData?.data ?? []).filter((s: any) => s.is_active);
-
-  const { data: ownerHoursData } = useQuery({
-    queryKey: ['storefront-hours', activeStaff[0]?.id],
-    queryFn: () => api.get(`/staff/${activeStaff[0].id}/working-hours`).then(r => r.data),
-    enabled: !!activeStaff[0]?.id,
-  });
-
-  const hours: any[] = ownerHoursData?.data ?? [];
+  const hours: any[] = hoursData?.data ?? [];
   const todayIdx = todayDayOfWeek();
   const todayHour = hours.find((h: any) => h.day_of_week === todayIdx);
   const isOpenToday = todayHour?.is_open;
@@ -95,7 +87,7 @@ export default function StorefrontPage() {
                 <Phone className="w-3 h-3" />{biz.phone}
               </a>
             )}
-            {ownerHoursData && (
+            {hoursData && (
               <span className={`flex items-center gap-1 font-medium ${isOpenToday ? 'text-green-300' : 'text-red-300'}`}>
                 <Clock className="w-3 h-3" />
                 {isOpenToday

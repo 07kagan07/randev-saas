@@ -2,8 +2,8 @@ import {
   Injectable, BadRequestException, ForbiddenException,
   UnauthorizedException, Inject, ConflictException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
@@ -30,6 +30,8 @@ export class AuthService {
     private readonly workingHoursRepo: Repository<WorkingHours>,
     @Inject(REDIS_CLIENT)
     private readonly redis: Redis,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly smsService: SmsService,
@@ -89,7 +91,18 @@ export class AuthService {
       });
     }
 
+    const attemptsKey = `otp_attempts:${phone}`;
+    const currentAttempts = parseInt(await this.redis.get(attemptsKey) ?? '0', 10);
+    if (currentAttempts >= 5) {
+      throw new BadRequestException({
+        code: 'OTP_LOCKED',
+        message: 'Çok fazla hatalı deneme. Lütfen 15 dakika sonra tekrar deneyin.',
+        message_en: 'Too many failed attempts. Please try again in 15 minutes.',
+      });
+    }
+
     if (storedOtp !== otp) {
+      await this.redis.set(attemptsKey, String(currentAttempts + 1), 'EX', 15 * 60);
       throw new BadRequestException({
         code: 'OTP_INVALID',
         message: 'Doğrulama kodu hatalı. Lütfen tekrar deneyin.',
@@ -98,6 +111,7 @@ export class AuthService {
     }
 
     await this.redis.del(`otp:${phone}`);
+    await this.redis.del(attemptsKey);
 
     const user = await this.userRepo.findOne({
       where: { phone },
@@ -237,7 +251,19 @@ export class AuthService {
         message_en: 'Verification code has expired. Please request a new one.',
       });
     }
+
+    const regAttemptsKey = `otp_attempts:${dto.phone}`;
+    const regAttempts = parseInt(await this.redis.get(regAttemptsKey) ?? '0', 10);
+    if (regAttempts >= 5) {
+      throw new BadRequestException({
+        code: 'OTP_LOCKED',
+        message: 'Çok fazla hatalı deneme. Lütfen 15 dakika sonra tekrar deneyin.',
+        message_en: 'Too many failed attempts. Please try again in 15 minutes.',
+      });
+    }
+
     if (storedOtp !== dto.otp) {
+      await this.redis.set(regAttemptsKey, String(regAttempts + 1), 'EX', 15 * 60);
       throw new BadRequestException({
         code: 'OTP_INVALID',
         message: 'Doğrulama kodu hatalı. Lütfen tekrar deneyin.',
@@ -245,6 +271,7 @@ export class AuthService {
       });
     }
     await this.redis.del(`otp:${dto.phone}`);
+    await this.redis.del(regAttemptsKey);
 
     await this.userRepo.save(
       this.userRepo.create({
@@ -281,27 +308,30 @@ export class AuthService {
       slug = `${baseSlug}-${suffix++}`;
     }
 
-    // İşletme oluştur
-    const business = await this.businessRepo.save(
-      this.businessRepo.create({ name: businessName, slug }),
-    );
+    // İşletme + bildirim ayarları + çalışma saatleri + kullanıcı bağlantısını atomic olarak oluştur
+    const business = await this.dataSource.transaction(async (manager) => {
+      const biz = await manager.getRepository(Business).save(
+        manager.getRepository(Business).create({ name: businessName, slug }),
+      );
 
-    // Varsayılan bildirim ayarları
-    await this.notifRepo.save(this.notifRepo.create({ business_id: business.id }));
+      await manager.getRepository(NotificationSettings).save(
+        manager.getRepository(NotificationSettings).create({ business_id: biz.id }),
+      );
 
-    // Owner için varsayılan çalışma saatleri (hepsi kapalı)
-    const defaultHours = Array.from({ length: 7 }, (_, i) => ({
-      staff_id: user.id,
-      day_of_week: i,
-      is_open: false,
-      start_time: null,
-      end_time: null,
-    }));
-    await this.workingHoursRepo.save(defaultHours);
+      const defaultHours = Array.from({ length: 7 }, (_, i) => ({
+        staff_id: user.id,
+        day_of_week: i,
+        is_open: false,
+        start_time: null as null,
+        end_time: null as null,
+      }));
+      await manager.getRepository(WorkingHours).save(defaultHours);
 
-    // Kullanıcıya işletmeyi bağla
-    user.business_id = business.id;
-    await this.userRepo.save(user);
+      user.business_id = biz.id;
+      await manager.getRepository(User).save(user);
+
+      return biz;
+    });
 
     // business_id dahil yeni access token
     const accessToken = this.jwtService.sign({

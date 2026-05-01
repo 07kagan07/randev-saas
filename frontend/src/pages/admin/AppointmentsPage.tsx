@@ -103,7 +103,7 @@ export default function AdminAppointmentsPage() {
           )}
 
           {upcoming.map((a: any) => (
-            <ApptCard key={a.id} appt={a} actions="staff"
+            <ApptCard key={a.id} appt={a} actions="admin"
               onAction={(id, act) => action.mutate({ id, act })}
               isPending={action.isPending} />
           ))}
@@ -120,7 +120,7 @@ export default function AdminAppointmentsPage() {
               {showPast && (
                 <div className="space-y-3 opacity-60">
                   {past.map((a: any) => (
-                    <ApptCard key={a.id} appt={a} actions="staff"
+                    <ApptCard key={a.id} appt={a} actions="admin"
                       onAction={(id, act) => action.mutate({ id, act })}
                       isPending={action.isPending} />
                   ))}

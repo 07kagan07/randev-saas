@@ -4,8 +4,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
 import { Business } from '../database/entities/business.entity';
+import { User, UserRole } from '../database/entities/user.entity';
 import { NotificationSettings } from '../database/entities/notification-settings.entity';
 import { SupportTicket } from '../database/entities/support-ticket.entity';
+import { WorkingHours } from '../database/entities/working-hours.entity';
 import { CreateBusinessDto } from './dto/create-business.dto';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 import { slugify } from '../common/utils/slugify';
@@ -18,10 +20,14 @@ export class BusinessesService {
   constructor(
     @InjectRepository(Business)
     private readonly businessRepo: Repository<Business>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     @InjectRepository(NotificationSettings)
     private readonly notifSettingsRepo: Repository<NotificationSettings>,
     @InjectRepository(SupportTicket)
     private readonly ticketRepo: Repository<SupportTicket>,
+    @InjectRepository(WorkingHours)
+    private readonly workingHoursRepo: Repository<WorkingHours>,
     private readonly config: ConfigService,
   ) {}
 
@@ -84,7 +90,7 @@ export class BusinessesService {
   async findBySlug(slug: string): Promise<Business & { services?: any[] }> {
     const business = await this.businessRepo.findOne({
       where: { slug, is_active: true },
-      relations: ['services', 'users'],
+      relations: ['services'],
     });
     if (!business) {
       throw new NotFoundException({
@@ -152,6 +158,59 @@ export class BusinessesService {
     const settings = await this.getNotificationSettings(businessId);
     Object.assign(settings, dto);
     return this.notifSettingsRepo.save(settings);
+  }
+
+  async getPublicStaff(businessId: string): Promise<{ id: string; full_name: string | null; avatar_url: string | null; is_active: boolean }[]> {
+    const business = await this.businessRepo.findOne({
+      where: { id: businessId, is_active: true },
+      select: ['id'],
+    });
+    if (!business) {
+      throw new NotFoundException({ code: 'BUSINESS_NOT_FOUND', message: 'İşletme bulunamadı.' });
+    }
+
+    return this.userRepo.find({
+      where: [
+        { business_id: businessId, role: UserRole.STAFF, is_active: true },
+        { business_id: businessId, role: UserRole.BUSINESS_ADMIN, is_active: true },
+      ],
+      select: ['id', 'full_name', 'avatar_url', 'is_active'],
+      order: { full_name: 'ASC' },
+      take: 200,
+    });
+  }
+
+  async getOpeningHours(businessId: string): Promise<{ day_of_week: number; is_open: boolean; start_time: string | null; end_time: string | null }[]> {
+    const business = await this.businessRepo.findOne({ where: { id: businessId, is_active: true }, select: ['id'] });
+    if (!business) {
+      throw new NotFoundException({ code: 'BUSINESS_NOT_FOUND', message: 'İşletme bulunamadı.' });
+    }
+
+    const staff = await this.userRepo.find({
+      where: [
+        { business_id: businessId, role: UserRole.STAFF, is_active: true },
+        { business_id: businessId, role: UserRole.BUSINESS_ADMIN, is_active: true },
+      ],
+      select: ['id'],
+    });
+
+    if (staff.length === 0) {
+      return Array.from({ length: 7 }, (_, i) => ({ day_of_week: i, is_open: false, start_time: null, end_time: null }));
+    }
+
+    const staffIds = staff.map(s => s.id);
+    const rows = await this.workingHoursRepo
+      .createQueryBuilder('wh')
+      .where('wh.staff_id IN (:...staffIds)', { staffIds })
+      .getMany();
+
+    return Array.from({ length: 7 }, (_, day) => {
+      const dayRows = rows.filter(r => r.day_of_week === day && r.is_open && r.start_time && r.end_time);
+      if (dayRows.length === 0) return { day_of_week: day, is_open: false, start_time: null, end_time: null };
+      const start = dayRows.map(r => r.start_time!).sort()[0];
+      const end = dayRows.map(r => r.end_time!).sort().reverse()[0];
+      return { day_of_week: day, is_open: true, start_time: start, end_time: end };
+    });
   }
 
   async createSupportTicket(businessId: string, subject: string, message: string): Promise<SupportTicket> {

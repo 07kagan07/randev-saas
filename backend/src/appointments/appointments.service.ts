@@ -1,7 +1,8 @@
 import {
   Injectable, NotFoundException, ConflictException,
-  BadRequestException, ForbiddenException,
+  BadRequestException, ForbiddenException, Logger,
 } from '@nestjs/common';
+import { OnModuleInit } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource, Not, In } from 'typeorm';
 import { InjectQueue } from '@nestjs/bull';
@@ -23,7 +24,9 @@ import { ListAppointmentsDto } from './dto/list-appointments.dto';
 import { AppointmentActionDto } from './dto/appointment-action.dto';
 
 @Injectable()
-export class AppointmentsService {
+export class AppointmentsService implements OnModuleInit {
+  private readonly logger = new Logger(AppointmentsService.name);
+
   constructor(
     @InjectRepository(Appointment)
     private readonly appointmentRepo: Repository<Appointment>,
@@ -43,12 +46,41 @@ export class AppointmentsService {
     private readonly dataSource: DataSource,
     @InjectQueue('notification-queue')
     private readonly notificationQueue: Queue,
+    @InjectQueue('push-queue')
+    private readonly pushQueue: Queue,
     @InjectQueue('reminder-queue')
     private readonly reminderQueue: Queue,
     private readonly planLimitService: PlanLimitService,
     private readonly config: ConfigService,
     private readonly eventsGateway: EventsGateway,
   ) {}
+
+  onModuleInit() {
+    this.autoCompleteExpiredAppointments();
+    setInterval(() => this.autoCompleteExpiredAppointments(), 5 * 60 * 1000);
+  }
+
+  private async autoCompleteExpiredAppointments(): Promise<void> {
+    try {
+      const expired = await this.appointmentRepo
+        .createQueryBuilder('a')
+        .where('a.status IN (:...statuses)', {
+          statuses: [AppointmentStatus.PENDING, AppointmentStatus.APPROVED],
+        })
+        .andWhere('a.end_at < :now', { now: new Date() })
+        .getMany();
+
+      for (const appt of expired) {
+        await this.updateStatus(appt, AppointmentStatus.COMPLETED, null, 'Otomatik tamamlandı');
+      }
+
+      if (expired.length > 0) {
+        this.logger.log(`Auto-completed ${expired.length} expired appointment(s)`);
+      }
+    } catch (err) {
+      this.logger.error('autoCompleteExpiredAppointments failed', err);
+    }
+  }
 
   // ─── Randevu Oluştur (Guest) ───────────────────────────────────────────────
 
@@ -139,12 +171,21 @@ export class AppointmentsService {
         note: 'Randevu oluşturuldu',
       });
 
-      setImmediate(() => this.scheduleNotifications(saved, business, service, staff));
-      setImmediate(() => this.eventsGateway.broadcastNewAppointment(business.id, {
-        ...saved,
-        service: { id: service.id, name: service.name, duration_minutes: service.duration_minutes, price: service.price },
-        staff: staff ? { id: staff.id, full_name: staff.full_name } : null,
-      }));
+      setImmediate(() => {
+        this.scheduleNotifications(saved, business, service, staff)
+          .catch((err) => this.logger.error('scheduleNotifications failed on create', err));
+      });
+      setImmediate(() => {
+        try {
+          this.eventsGateway.broadcastNewAppointment(business.id, {
+            ...saved,
+            service: { id: service.id, name: service.name, duration_minutes: service.duration_minutes, price: service.price },
+            staff: staff ? { id: staff.id, full_name: staff.full_name } : null,
+          });
+        } catch (err) {
+          this.logger.error('broadcastNewAppointment failed on create', err);
+        }
+      });
 
       return saved;
     });
@@ -234,12 +275,21 @@ export class AppointmentsService {
         note: 'Personel tarafından oluşturuldu',
       });
 
-      setImmediate(() => this.scheduleNotifications(saved, business, service, staff));
-      setImmediate(() => this.eventsGateway.broadcastNewAppointment(business.id, {
-        ...saved,
-        service: { id: service.id, name: service.name, duration_minutes: service.duration_minutes, price: service.price },
-        staff: staff ? { id: staff.id, full_name: staff.full_name } : null,
-      }));
+      setImmediate(() => {
+        this.scheduleNotifications(saved, business, service, staff)
+          .catch((err) => this.logger.error('scheduleNotifications failed on createInternal', err));
+      });
+      setImmediate(() => {
+        try {
+          this.eventsGateway.broadcastNewAppointment(business.id, {
+            ...saved,
+            service: { id: service.id, name: service.name, duration_minutes: service.duration_minutes, price: service.price },
+            staff: staff ? { id: staff.id, full_name: staff.full_name } : null,
+          });
+        } catch (err) {
+          this.logger.error('broadcastNewAppointment failed on createInternal', err);
+        }
+      });
 
       return saved;
     });
@@ -272,22 +322,19 @@ export class AppointmentsService {
       throw new NotFoundException({ code: 'NO_STAFF_AVAILABLE', message: 'Bu hizmet için uygun personel bulunamadı.' });
     }
 
-    // Slotta çakışan randevusu olmayan personeli filtrele
-    const available: User[] = [];
-    for (const staff of candidates) {
-      // Çakışma kontrolü — start_at < endAt && end_at > startAt
-      const conflictingAppt = await this.appointmentRepo
-        .createQueryBuilder('a')
-        .where('a.staff_id = :staffId', { staffId: staff.id })
-        .andWhere('a.status NOT IN (:...cancelled)', {
-          cancelled: [AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED],
-        })
-        .andWhere('a.start_at < :endAt', { endAt })
-        .andWhere('a.end_at > :startAt', { startAt })
-        .getOne();
+    // Batch conflict check — tek sorguda slottaki çakışan personeli bul
+    const cancelledStatuses = [AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED];
+    const conflictRows = await this.appointmentRepo
+      .createQueryBuilder('a')
+      .select('a.staff_id', 'staffId')
+      .where('a.staff_id IN (:...staffIds)', { staffIds: candidates.map((s) => s.id) })
+      .andWhere('a.status NOT IN (:...cancelled)', { cancelled: cancelledStatuses })
+      .andWhere('a.start_at < :endAt', { endAt })
+      .andWhere('a.end_at > :startAt', { startAt })
+      .getRawMany<{ staffId: string }>();
 
-      if (!conflictingAppt) available.push(staff);
-    }
+    const conflictingStaffIds = new Set(conflictRows.map((r) => r.staffId));
+    const available = candidates.filter((s) => !conflictingStaffIds.has(s.id));
 
     if (available.length === 0) {
       throw new ConflictException({
@@ -297,30 +344,29 @@ export class AppointmentsService {
       });
     }
 
-    // Müsait personel arasından o gün en az randevusu olanı seç
+    // Batch count query — tek sorguda o gün her personelin randevu sayısını al
     const dayStart = new Date(startAt);
     dayStart.setUTCHours(0, 0, 0, 0);
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    let bestStaff = available[0];
-    let bestCount = Infinity;
+    const countRows = await this.appointmentRepo
+      .createQueryBuilder('a')
+      .select('a.staff_id', 'staffId')
+      .addSelect('COUNT(*)', 'cnt')
+      .where('a.staff_id IN (:...staffIds)', { staffIds: available.map((s) => s.id) })
+      .andWhere('a.start_at >= :dayStart', { dayStart })
+      .andWhere('a.start_at < :dayEnd', { dayEnd })
+      .andWhere('a.status NOT IN (:...cancelled)', { cancelled: cancelledStatuses })
+      .groupBy('a.staff_id')
+      .getRawMany<{ staffId: string; cnt: string }>();
 
-    for (const staff of available) {
-      const count = await this.appointmentRepo
-        .createQueryBuilder('a')
-        .where('a.staff_id = :staffId', { staffId: staff.id })
-        .andWhere('a.start_at >= :dayStart', { dayStart })
-        .andWhere('a.start_at < :dayEnd', { dayEnd })
-        .andWhere('a.status NOT IN (:...cancelled)', {
-          cancelled: [AppointmentStatus.CANCELLED, AppointmentStatus.REJECTED],
-        })
-        .getCount();
+    const countMap = new Map<string, number>(
+      countRows.map((r) => [r.staffId, parseInt(r.cnt, 10)]),
+    );
 
-      if (count < bestCount) {
-        bestCount = count;
-        bestStaff = staff;
-      }
-    }
+    const bestStaff = available.reduce((best, s) => {
+      return (countMap.get(s.id) ?? 0) < (countMap.get(best.id) ?? 0) ? s : best;
+    }, available[0]);
 
     return bestStaff.id;
   }
@@ -400,7 +446,16 @@ export class AppointmentsService {
       throw new BadRequestException({ code: 'INVALID_STATUS', message: 'Yalnızca bekleyen randevular onaylanabilir.' });
     }
 
-    return this.updateStatus(appointment, AppointmentStatus.APPROVED, user.id, 'Onaylandı');
+    const saved = await this.updateStatus(appointment, AppointmentStatus.APPROVED, user.id, 'Onaylandı');
+
+    setImmediate(() => {
+      this.appointmentRepo
+        .findOne({ where: { id: saved.id }, relations: ['business', 'service', 'staff'] })
+        .then((full) => { if (full) return this.scheduleNotifications(full, full.business, full.service, full.staff); })
+        .catch((err) => this.logger.error('scheduleNotifications failed on approve', err));
+    });
+
+    return saved;
   }
 
   async reject(user: User, id: string, reason: string): Promise<Appointment> {
@@ -428,8 +483,8 @@ export class AppointmentsService {
   async markNoShow(user: User, id: string): Promise<Appointment> {
     const appointment = await this.findOne(user, id);
 
-    if (appointment.status !== AppointmentStatus.APPROVED) {
-      throw new BadRequestException({ code: 'INVALID_STATUS', message: 'Yalnızca onaylı randevular için "Gelmedi" işaretlenebilir.' });
+    if (![AppointmentStatus.APPROVED, AppointmentStatus.COMPLETED].includes(appointment.status)) {
+      throw new BadRequestException({ code: 'INVALID_STATUS', message: 'Yalnızca onaylı veya tamamlandı randevular için "Gelmedi" işaretlenebilir.' });
     }
 
     return this.updateStatus(appointment, AppointmentStatus.NO_SHOW, user.id, 'Müşteri gelmedi');
@@ -438,7 +493,7 @@ export class AppointmentsService {
   async cancelByStaff(user: User, id: string): Promise<Appointment> {
     const appointment = await this.findOne(user, id);
 
-    if (![AppointmentStatus.APPROVED, AppointmentStatus.PENDING].includes(appointment.status)) {
+    if (![AppointmentStatus.APPROVED, AppointmentStatus.PENDING, AppointmentStatus.COMPLETED].includes(appointment.status)) {
       throw new BadRequestException({ code: 'INVALID_STATUS', message: 'Bu randevu iptal edilemez.' });
     }
 
@@ -628,18 +683,46 @@ export class AppointmentsService {
     note?: string,
   ): Promise<Appointment> {
     const oldStatus = appointment.status;
-    appointment.status = newStatus;
-    const saved = await this.appointmentRepo.save(appointment);
 
-    await this.logRepo.save({
-      appointment_id: appointment.id,
-      changed_by: changedBy,
-      from_status: oldStatus,
-      to_status: newStatus,
-      note,
+    const saved = await this.dataSource.transaction(async (manager) => {
+      appointment.status = newStatus;
+      const s = await manager.save(Appointment, appointment);
+      await manager.save(AppointmentLog, {
+        appointment_id: appointment.id,
+        changed_by: changedBy,
+        from_status: oldStatus,
+        to_status: newStatus,
+        note,
+      });
+      return s;
     });
 
+    const cancelStatuses = [
+      AppointmentStatus.CANCELLED,
+      AppointmentStatus.REJECTED,
+      AppointmentStatus.NO_SHOW,
+      AppointmentStatus.RESCHEDULED,
+    ];
+    if (cancelStatuses.includes(newStatus)) {
+      setImmediate(() => {
+        this.cancelReminders(appointment.id)
+          .catch((err) => this.logger.warn('cancelReminders failed in setImmediate', err));
+      });
+    }
+
     return saved;
+  }
+
+  private async cancelReminders(appointmentId: string): Promise<void> {
+    try {
+      const [smsJob, waJob] = await Promise.all([
+        this.reminderQueue.getJob(`sms:${appointmentId}`),
+        this.reminderQueue.getJob(`wa:${appointmentId}`),
+      ]);
+      await Promise.all([smsJob?.remove(), waJob?.remove()]);
+    } catch (err) {
+      this.logger.warn(`cancelReminders failed for ${appointmentId}`, err?.message);
+    }
   }
 
   private async scheduleNotifications(
@@ -679,6 +762,22 @@ export class AppointmentsService {
       if (settings?.whatsapp_enabled) {
         await this.notificationQueue.add({ type: 'whatsapp', event: 'appointment.confirmed', phone: appointment.customer_phone, params });
       }
+      // Atanan personele push gönder (ayrı push-queue)
+      if (settings?.push_enabled) {
+        const pushRecipients = await this.getPushRecipients(business.id, appointment.staff_id);
+        if (pushRecipients.length > 0) {
+          await this.pushQueue.add({
+            type: 'push',
+            event: 'appointment.new',
+            userIds: pushRecipients,
+            params: {
+              title: 'Yeni Randevu',
+              body: `${appointment.customer_name} — ${service.name} — ${params.time}`,
+              url: '/admin/appointments',
+            },
+          });
+        }
+      }
 
       // Hatırlatma zamanla
       if (settings?.reminder_minutes) {
@@ -690,31 +789,51 @@ export class AppointmentsService {
           if (settings.sms_enabled) {
             await this.reminderQueue.add(
               { type: 'sms', event: 'appointment.reminder', phone: appointment.customer_phone, params },
-              { delay },
+              { delay, jobId: `sms:${appointment.id}` },
             );
           }
           if (settings.whatsapp_enabled) {
             await this.reminderQueue.add(
               { type: 'whatsapp', event: 'appointment.reminder', phone: appointment.customer_phone, params },
-              { delay },
+              { delay, jobId: `wa:${appointment.id}` },
             );
           }
         }
       }
     } else if (appointment.status === AppointmentStatus.PENDING) {
-      // Admin/staff'e push gönder
+      // Müşteriye "talebiniz alındı" SMS'i gönder
+      if (settings?.sms_enabled) {
+        await this.notificationQueue.add({ type: 'sms', event: 'appointment.pending_customer', phone: appointment.customer_phone, params });
+      }
+      if (settings?.whatsapp_enabled) {
+        await this.notificationQueue.add({ type: 'whatsapp', event: 'appointment.pending_customer', phone: appointment.customer_phone, params });
+      }
+      // Atanan personel + admin'e push gönder (ayrı push-queue)
       if (settings?.push_enabled) {
-        await this.notificationQueue.add({
-          type: 'push',
-          event: 'appointment.pending',
-          params: {
-            title: 'Yeni Randevu İsteği',
-            body: `${appointment.customer_name} — ${service.name}`,
-            url: '/admin/appointments',
-          },
-        });
+        const pushRecipients = await this.getPushRecipients(business.id, appointment.staff_id);
+        if (pushRecipients.length > 0) {
+          await this.pushQueue.add({
+            type: 'push',
+            event: 'appointment.new',
+            userIds: pushRecipients,
+            params: {
+              title: 'Yeni Randevu İsteği',
+              body: `${appointment.customer_name} — ${service.name}`,
+              url: '/admin/appointments',
+            },
+          });
+        }
       }
     }
+  }
+
+  private async getPushRecipients(businessId: string, staffId: string): Promise<string[]> {
+    const ids = new Set<string>([staffId]);
+    const admin = await this.userRepo.findOne({
+      where: { business_id: businessId, role: UserRole.BUSINESS_ADMIN },
+    });
+    if (admin) ids.add(admin.id);
+    return [...ids];
   }
 
   private hashLock(key: string): number {

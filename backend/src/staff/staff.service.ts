@@ -80,6 +80,7 @@ export class StaffService {
       ],
       relations: ['working_hours', 'staff_services', 'staff_services.service'],
       order: { full_name: 'ASC' },
+      take: 200,
     });
   }
 

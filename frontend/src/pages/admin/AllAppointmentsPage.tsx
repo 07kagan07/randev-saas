@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
 import ApptCard, { isArchived } from '../../components/shared/ApptCard';
 import { useBusinessSocket } from '../../hooks/useBusinessSocket';
@@ -20,10 +21,12 @@ export default function AllAppointmentsPage() {
   const { user } = useAuthStore();
   const bid = user?.business_id!;
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
 
-  const [selectedDate, setSelectedDate] = useState(toDateStr(new Date()));
+  const [selectedDate, setSelectedDate] = useState(() => searchParams.get('date') || toDateStr(new Date()));
   const [staffFilter, setStaffFilter]   = useState('');
   const [showPast, setShowPast]         = useState(false);
+  const [activeHighlight, setActiveHighlight] = useState<string | null>(() => searchParams.get('highlight'));
 
   useBusinessSocket(bid, {
     onNewAppointment: () => qc.invalidateQueries({ queryKey: ['all-day-appts'], refetchType: 'all' }),
@@ -72,6 +75,25 @@ export default function AllAppointmentsPage() {
       api.patch(`/appointments/${id}/${act}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['all-day-appts'] }),
   });
+
+  // Auto-expand past section if highlighted appointment is archived
+  useEffect(() => {
+    if (!activeHighlight || !data) return;
+    const target = (data?.data ?? []).find((a: any) => a.id === activeHighlight);
+    if (target && isArchived(target)) setShowPast(true);
+  }, [data, activeHighlight]);
+
+  // Scroll to highlighted appointment once it's rendered
+  useEffect(() => {
+    if (!activeHighlight) return;
+    const el = document.getElementById(`appt-${activeHighlight}`);
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    const timer = setTimeout(() => setActiveHighlight(null), 3500);
+    return () => clearTimeout(timer);
+  }, [activeHighlight, showPast, data]);
 
   const sorted: any[] = (data?.data ?? []).sort(
     (a: any, b: any) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
@@ -161,9 +183,17 @@ export default function AllAppointmentsPage() {
           )}
 
           {upcoming.map((a: any) => (
-            <ApptCard key={a.id} appt={a} actions="staff" showStaff
-              onAction={(id, act) => action.mutate({ id, act })}
-              isPending={action.isPending} />
+            <div
+              key={a.id}
+              id={`appt-${a.id}`}
+              className={activeHighlight === a.id
+                ? 'ring-2 ring-indigo-500 ring-offset-2 rounded-xl transition-shadow duration-500'
+                : ''}
+            >
+              <ApptCard appt={a} actions="admin" showStaff
+                onAction={(id, act) => action.mutate({ id, act })}
+                isPending={action.isPending} />
+            </div>
           ))}
 
           {past.length > 0 && (
@@ -178,11 +208,19 @@ export default function AllAppointmentsPage() {
                   : t('appointments.past', { count: past.length })}
               </button>
               {showPast && (
-                <div className="space-y-3 opacity-60">
+                <div className="space-y-3">
                   {past.map((a: any) => (
-                    <ApptCard key={a.id} appt={a} actions="staff"
-                      onAction={(id, act) => action.mutate({ id, act })}
-                      isPending={action.isPending} />
+                    <div
+                      key={a.id}
+                      id={`appt-${a.id}`}
+                      className={activeHighlight === a.id
+                        ? 'ring-2 ring-indigo-500 ring-offset-2 rounded-xl transition-shadow duration-500'
+                        : 'opacity-60'}
+                    >
+                      <ApptCard appt={a} actions="admin"
+                        onAction={(id, act) => action.mutate({ id, act })}
+                        isPending={action.isPending} />
+                    </div>
                   ))}
                 </div>
               )}

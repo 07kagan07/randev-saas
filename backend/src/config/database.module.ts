@@ -43,6 +43,11 @@ import { BusinessType } from '../database/entities/business-type.entity';
         ssl: config.get('NODE_ENV') === 'production'
           ? { rejectUnauthorized: false }
           : false,
+        extra: {
+          max: 20,
+          connectionTimeoutMillis: 5000,
+          idleTimeoutMillis: 30000,
+        },
       }),
     }),
   ],

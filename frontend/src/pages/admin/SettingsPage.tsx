@@ -13,7 +13,7 @@ export default function AdminSettingsPage() {
   const qc = useQueryClient();
 
   const [form, setForm] = useState({
-    name: '', phone: '', address: '', description: '', slot_interval_minutes: 30, maps_url: '', apple_maps_url: '', show_prices: false,
+    name: '', phone: '', address: '', description: '', slot_interval_minutes: 30, maps_url: '', apple_maps_url: '', show_prices: false, approval_mode: 'auto_approve' as 'auto_approve' | 'manual_approve',
   });
   const [slug, setSlug] = useState('');
   const [notif, setNotif] = useState({
@@ -41,7 +41,7 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     const b = bizData?.data;
     if (b) {
-      setForm({ name: b.name ?? '', phone: b.phone ?? '', address: b.address ?? '', description: b.description ?? '', slot_interval_minutes: b.slot_interval_minutes ?? 30, maps_url: b.maps_url ?? '', apple_maps_url: b.apple_maps_url ?? '', show_prices: b.show_prices ?? false });
+      setForm({ name: b.name ?? '', phone: b.phone ?? '', address: b.address ?? '', description: b.description ?? '', slot_interval_minutes: b.slot_interval_minutes ?? 30, maps_url: b.maps_url ?? '', apple_maps_url: b.apple_maps_url ?? '', show_prices: b.show_prices ?? false, approval_mode: b.approval_mode ?? 'auto_approve' });
       setSlug(b.slug ?? '');
     }
   }, [bizData]);
@@ -128,6 +128,27 @@ export default function AdminSettingsPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('onboarding.step2.description')}</label>
             <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={3}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-2">{t('settings.approvalMode')}</p>
+            <div className="flex gap-3">
+              {(['auto_approve', 'manual_approve'] as const).map(mode => (
+                <label key={mode} className={`flex-1 flex items-center gap-2.5 border rounded-lg px-4 py-3 cursor-pointer transition-colors ${form.approval_mode === mode ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
+                  <input
+                    type="radio"
+                    name="approval_mode"
+                    value={mode}
+                    checked={form.approval_mode === mode}
+                    onChange={() => setForm(f => ({ ...f, approval_mode: mode }))}
+                    className="accent-indigo-600"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    {mode === 'auto_approve' ? t('settings.autoApprove') : t('settings.manualApprove')}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">{t('settings.approvalModeHelp')}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('settings.mapsUrl')}</label>

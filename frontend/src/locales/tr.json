@@ -155,7 +155,8 @@
     "selectOption": "Seçin...",
     "noSlotsForDate": "Bu tarihte müsait saat yok.",
     "tryOtherDate": "Başka bir tarih deneyin.",
-    "continueBtn": "Devam Et →",
+    "continueBtn": "Devam Et",
+    "selectSlotFirst": "Lütfen bir saat seçin",
     "requestReceivedTitle": "Talebiniz Alındı!",
     "pendingApprovalMsg": "Randevunuz işletme onayına gönderildi.",
     "willNotifySms": "Onaylandığında SMS ile bilgilendirileceksiniz.",
@@ -385,6 +386,7 @@
     "approvalMode": "Onay Modu",
     "autoApprove": "Otomatik Onay",
     "manualApprove": "Manuel Onay",
+    "approvalModeHelp": "Manuel modda müşteri randevu oluşturduğunda önce bildirim alır; siz onayladığınızda onay SMS'i gönderilir.",
     "notifications": "Bildirimler",
     "smsOnNew": "SMS — yeni randevu",
     "smsOnCancel": "SMS — iptal/red",
@@ -562,6 +564,20 @@
   },
   "phone": {
     "searchCountry": "Ülke ara...",
-    "countryNotFound": "Ülke bulunamadı"
+    "countryNotFound": "Ülke bulunamadı",
+    "invalid": "Geçersiz telefon numarası ({{hint}} hane)"
+  },
+  "push": {
+    "promptDesc": "Yeni randevulardan anında haberdar olmak için bildirimleri açın",
+    "enable": "Bildirimleri Aç",
+    "dismiss": "Şimdi Değil"
+  },
+  "notifBell": {
+    "title": "Bildirimler",
+    "new": "yeni",
+    "empty": "Henüz bildirim yok",
+    "pendingApproval": "Onay Bekliyor",
+    "approved": "Onaylandı",
+    "viewAll": "Tüm randevuları gör"
   }
 }

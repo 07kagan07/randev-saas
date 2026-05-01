@@ -155,7 +155,8 @@
     "selectOption": "Auswählen...",
     "noSlotsForDate": "Keine verfügbaren Zeiten für dieses Datum.",
     "tryOtherDate": "Versuchen Sie ein anderes Datum.",
-    "continueBtn": "Weiter →",
+    "continueBtn": "Weiter",
+    "selectSlotFirst": "Bitte wählen Sie eine Uhrzeit",
     "requestReceivedTitle": "Anfrage erhalten!",
     "pendingApprovalMsg": "Ihr Termin wurde zur Genehmigung gesendet.",
     "willNotifySms": "Sie werden per SMS benachrichtigt, wenn genehmigt.",
@@ -385,6 +386,7 @@
     "approvalMode": "Genehmigungsmodus",
     "autoApprove": "Automatische Genehmigung",
     "manualApprove": "Manuelle Genehmigung",
+    "approvalModeHelp": "Im manuellen Modus erhält der Kunde nach Ihrer Genehmigung eine Bestätigungs-SMS.",
     "notifications": "Benachrichtigungen",
     "smsOnNew": "SMS — neuer Termin",
     "smsOnCancel": "SMS — Stornierung/Ablehnung",
@@ -562,6 +564,20 @@
   },
   "phone": {
     "searchCountry": "Land suchen...",
-    "countryNotFound": "Land nicht gefunden"
+    "countryNotFound": "Land nicht gefunden",
+    "invalid": "Ungültige Telefonnummer ({{hint}} Stellen)"
+  },
+  "push": {
+    "promptDesc": "Aktivieren Sie Benachrichtigungen, um sofortige Meldungen für neue Termine zu erhalten",
+    "enable": "Benachrichtigungen aktivieren",
+    "dismiss": "Nicht jetzt"
+  },
+  "notifBell": {
+    "title": "Benachrichtigungen",
+    "new": "neu",
+    "empty": "Noch keine Benachrichtigungen",
+    "pendingApproval": "Ausstehend",
+    "approved": "Bestätigt",
+    "viewAll": "Alle Termine anzeigen"
   }
 }

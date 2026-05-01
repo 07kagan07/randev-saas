@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(docker compose:*)",
-      "Bash(grep -v \"//\")"
+      "Bash(grep -v \"//\")",
+      "Bash(curl -s \"http://localhost:8080/api/v1/businesses/slug/nur-kuafor\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d['data']['id']\\)\")",
+      "Bash(curl -s \"http://localhost:8080/api/v1/staff/b2c5dc35-c805-4368-8b9d-1bba7edfe0eb/working-hours\")"
     ]
   }
 }

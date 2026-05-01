@@ -1,6 +1,7 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { IsOptional, IsString, IsBoolean, IsInt, IsArray, IsNumber } from 'class-validator';
+import { IsOptional, IsString, IsBoolean, IsInt, IsArray, IsNumber, IsEnum } from 'class-validator';
 import { CreateBusinessDto } from './create-business.dto';
+import { ApprovalMode } from '../../database/entities/business.entity';
 
 export class UpdateBusinessDto extends PartialType(CreateBusinessDto) {
   @IsOptional()
@@ -52,4 +53,8 @@ export class UpdateBusinessDto extends PartialType(CreateBusinessDto) {
   @IsOptional()
   @IsBoolean()
   show_prices?: boolean;
+
+  @IsOptional()
+  @IsEnum(ApprovalMode)
+  approval_mode?: ApprovalMode;
 }

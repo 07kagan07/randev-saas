@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { COUNTRIES, Country, DEFAULT_COUNTRY, parsePhoneE164 } from '../../data/countries';
+import { COUNTRIES, Country, DEFAULT_COUNTRY, parsePhoneE164, validateLocalPhone } from '../../data/countries';
 
 interface Props {
   /** E.164 formatında tam numara: "+905551234567" */
@@ -12,6 +12,13 @@ interface Props {
   className?: string;
 }
 
+function buildHint(country: Country): string {
+  const [min, max] = country.phoneLen;
+  const lenPart = min === max ? `${min}` : `${min}-${max}`;
+  const prefixPart = country.phonePrefix ? ` / ${country.phonePrefix}xxx` : '';
+  return `${lenPart}${prefixPart}`;
+}
+
 export default function PhoneInput({ value, onChange, placeholder, disabled, className }: Props) {
   const { t } = useTranslation();
   const parsed = value ? parsePhoneE164(value) : null;
@@ -19,6 +26,7 @@ export default function PhoneInput({ value, onChange, placeholder, disabled, cla
   const [local, setLocal]     = useState<string>(parsed?.localNumber ?? '');
   const [open, setOpen]       = useState(false);
   const [search, setSearch]   = useState('');
+  const [dirty, setDirty]     = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,17 +46,24 @@ export default function PhoneInput({ value, onChange, placeholder, disabled, cla
   }, []);
 
   const handleCountrySelect = (c: Country) => {
+    const trimmed = local.slice(0, c.phoneLen[1]);
     setCountry(c);
+    setLocal(trimmed);
     setOpen(false);
     setSearch('');
-    onChange(c.dialCode + local);
+    setDirty(false);
+    onChange(c.dialCode + trimmed);
   };
 
   const handleLocalChange = (v: string) => {
-    const digits = v.replace(/\D/g, '');
+    const digits = v.replace(/\D/g, '').slice(0, country.phoneLen[1]);
     setLocal(digits);
+    setDirty(true);
     onChange(country.dialCode + digits);
   };
+
+  const isValid   = local.length === 0 ? true : validateLocalPhone(local, country);
+  const showError = dirty && local.length > 0 && !isValid;
 
   const filtered = search.trim()
     ? COUNTRIES.filter(c =>
@@ -60,12 +75,18 @@ export default function PhoneInput({ value, onChange, placeholder, disabled, cla
 
   return (
     <div ref={dropRef} className={`relative ${className ?? ''}`}>
-      <div className="flex rounded-xl border border-gray-300 overflow-visible focus-within:ring-2 focus-within:ring-indigo-500">
+      <div className={`flex rounded-xl overflow-hidden transition-all ${
+        showError
+          ? 'ring-2 ring-red-400'
+          : 'ring-1 ring-gray-300 focus-within:ring-2 focus-within:ring-indigo-500'
+      }`}>
         <button
           type="button"
           disabled={disabled}
           onClick={() => { setOpen(v => !v); setSearch(''); }}
-          className="flex items-center gap-1.5 px-3 py-3 bg-gray-50 border-r border-gray-300 text-sm text-gray-700 hover:bg-gray-100 transition-colors shrink-0 disabled:opacity-60"
+          className={`flex items-center gap-1.5 px-3 py-3 border-r text-sm text-gray-700 hover:bg-gray-100 transition-colors shrink-0 disabled:opacity-60 focus:outline-none ${
+            showError ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'
+          }`}
         >
           <span className="text-base leading-none">{country.flag}</span>
           <span className="font-medium tabular-nums">{country.dialCode}</span>
@@ -76,11 +97,20 @@ export default function PhoneInput({ value, onChange, placeholder, disabled, cla
           type="tel"
           value={local}
           onChange={e => handleLocalChange(e.target.value)}
-          placeholder={placeholder ?? '5xx xxx xxxx'}
+          onBlur={() => { if (local.length > 0) setDirty(true); }}
+          placeholder={placeholder ?? country.phonePrefix
+            ? `${country.phonePrefix}xx xxx xxxx`
+            : `xxx xxx xxxx`}
           disabled={disabled}
-          className="flex-1 px-3 py-3 text-base outline-none bg-white disabled:opacity-60"
+          className="flex-1 px-3 py-3 text-base outline-none border-0 bg-white disabled:opacity-60"
         />
       </div>
+
+      {showError && (
+        <p className="mt-1 text-xs text-red-500">
+          {t('phone.invalid', { hint: buildHint(country) })}
+        </p>
+      )}
 
       {open && (
         <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg w-72 max-h-64 flex flex-col">
